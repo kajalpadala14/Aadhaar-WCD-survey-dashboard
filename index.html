@@ -1,0 +1,427 @@
+﻿<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>आधार डेटा एंट्री — दंतेवाड़ा</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=20260806-live-sync">
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">🏛 <span>दंतेवाड़ा</span> आधार सर्वे</div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" onclick="switchView('dashboard')">📊 डैशबोर्ड</div>
+    <div class="nav-tab" onclick="switchView('entry')">✍️ डेटा एंट्री</div>
+    <div class="nav-tab" onclick="switchView('report')">📋 रिपोर्ट</div>
+  </div>
+  <div class="nav-right">
+    <div class="sync-pill" id="sync-status">⚙️ सेटअप बाकी है</div>
+    <button class="sync-btn" onclick="fetchFromSheet()" title="Google Sheet से ताज़ा डेटा लाएं">🔄 सिंक</button>
+    <div class="progress-pill" id="nav-progress">⏳ लोड हो रहा है...</div>
+  </div>
+</nav>
+
+<!-- DASHBOARD -->
+<div id="view-dashboard">
+  <div class="dash-wrap">
+    <div class="dash-title">आधार डेटा एंट्री डैशबोर्ड</div>
+    <div class="dash-subtitle">NCAER सर्वे — दंतेवाड़ा जिला, छत्तीसगढ़</div>
+
+    <div class="stat-grid">
+      <div class="stat-card blue">
+        <div class="stat-label">कुल सदस्य</div>
+        <div class="stat-value" id="s-total">7,418</div>
+        <div class="stat-sub">4 ब्लॉक · 165 ग्राम पंचायत</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">आधार भरे</div>
+        <div class="stat-value" id="s-filled">0</div>
+        <div class="stat-sub" id="s-filled-pct">0% पूर्ण</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">शेष</div>
+        <div class="stat-value" id="s-pending">7,418</div>
+        <div class="stat-sub" id="s-pending-pct">100% बाकी</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-label">केवल रिमार्क</div>
+        <div class="stat-value" id="s-remark">0</div>
+        <div class="stat-sub">आधार/एनरोलमेंट नहीं</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="dash-card">
+        <h3>📍 ब्लॉक-वार वितरण</h3>
+        <div id="block-bars"></div>
+      </div>
+      <div class="dash-card">
+        <h3>✅ ब्लॉक-वार प्रगति</h3>
+        <div id="block-progress"></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="dash-card">
+        <h3>👥 लिंग वितरण</h3>
+        <div id="gender-bars"></div>
+      </div>
+      <div class="dash-card">
+        <h3>📋 ब्लॉक विवरण</h3>
+        <table class="block-table">
+          <thead>
+            <tr>
+              <th>ब्लॉक</th>
+              <th>कुल</th>
+              <th>गाँव</th>
+              <th>भरे</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody id="block-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dash-card" style="margin-bottom:24px">
+      <h3>✅ Project-wise progress</h3>
+      <div id="project-progress"></div>
+    </div>
+
+    <div class="dash-card" style="margin-bottom:24px">
+      <h3>📋 Project details</h3>
+      <table class="block-table summary-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>कुल सदस्य</th>
+            <th>आधार भरे</th>
+            <th>एनरोलमेंट भरे</th>
+            <th>रिमार्क मात्र</th>
+            <th>खाली</th>
+            <th>पूर्णता %</th>
+          </tr>
+        </thead>
+        <tbody id="project-table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="dash-card" style="margin-bottom:24px">
+      <h3>📊 एंट्री प्रकार (भरे हुए रिकॉर्ड में)</h3>
+      <div id="type-bars"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DATA ENTRY -->
+<div id="view-entry">
+  <div class="entry-wrap">
+    <div class="search-bar">
+      <div class="search-row">
+        <span class="filter-label">🔍</span>
+        <input type="text" id="search-input" placeholder="नाम, गाँव, मोबाइल खोजें..." oninput="applyFilters()">
+      </div>
+      <div class="filter-row">
+        <select id="filter-block" onchange="onBlockFilterChange()">
+          <option value="">सभी ब्लॉक</option>
+          <option>Dantewada</option>
+          <option>Geedam</option>
+          <option>Katekalyan</option>
+          <option>Kuakonda</option>
+        </select>
+        <select id="filter-gp" onchange="onGPFilterChange()">
+          <option value="">सभी ग्राम पंचायत</option>
+        </select>
+        <select id="filter-village" onchange="applyFilters()">
+          <option value="">सभी गाँव</option>
+        </select>
+        <select id="filter-status" onchange="applyFilters()">
+          <option value="">सभी स्थिति</option>
+          <option value="filled">भरे हुए</option>
+          <option value="empty">खाली</option>
+        </select>
+        <select id="filter-gender" onchange="applyFilters()">
+          <option value="">सभी लिंग</option>
+          <option value="Male">पुरुष</option>
+          <option value="Female">महिला</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+     <div class="table-header">
+
+    <h3>सदस्य सूची</h3>
+
+    <div style="display:flex;gap:10px;align-items:center;">
+
+        <div class="table-info"
+             id="table-info">
+        </div>
+
+    </div>
+
+</div>
+      <div style="overflow-x:auto">
+        <table class="records-table">
+          <thead>
+            <tr>
+              <th>क्र.</th>
+              <th>ब्लॉक</th>
+              <th>ग्राम पंचायत</th>
+              <th>गाँव</th>
+              <th>परिवार मुखिया</th>
+              <th>सदस्य</th>
+              <th>लिंग / आयु</th>
+              <th>स्थिति</th>
+              <th>कॉल</th>
+              <th>कार्य</th>
+            </tr>
+          </thead>
+          <tbody id="records-tbody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT -->
+<div id="view-report">
+  <div class="report-wrap">
+    <div class="report-head">
+      <h1>📋 आधार डेटा एंट्री रिपोर्ट</h1>
+      <p>NCAER सर्वे — दंतेवाड़ा जिला, छत्तीसगढ़ | रिपोर्ट दिनांक: <span id="report-date"></span></p>
+      <div class="report-meta">
+        <div class="report-meta-item"><div class="rml">कुल सदस्य</div><div class="rmv" id="rm-total">7,418</div></div>
+        <div class="report-meta-item"><div class="rml">भरे हुए</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
+        <div class="report-meta-item"><div class="rml">खाली</div><div class="rmv" id="rm-pending" style="color:var(--accent)">7,418</div></div>
+        <div class="report-meta-item"><div class="rml">पूर्णता</div><div class="rmv" id="rm-pct" style="color:var(--accent2)">0%</div></div>
+      </div>
+    </div>
+
+    <div class="export-bar">
+      <button class="btn-export" onclick="downloadSectionExcel('project')">📊 Project Excel</button>
+      <button class="btn-export" onclick="downloadSectionPDF('project')">📄 Project PDF</button>
+      <button class="btn-export" onclick="downloadSectionExcel('block')">📍 Block Excel</button>
+      <button class="btn-export" onclick="downloadSectionPDF('block')">📄 Block PDF</button>
+      <button class="btn-export" onclick="downloadSectionExcel('gp')">🏘️ GP Excel</button>
+      <button class="btn-export" onclick="downloadSectionPDF('gp')">📄 GP PDF</button>
+      <button class="btn-export" onclick="downloadSectionExcel('filled')">✅ Filled Excel</button>
+      <button class="btn-export" onclick="downloadSectionPDF('filled')">📄 Filled PDF</button>
+      <button class="btn-export" onclick="exportCSV()">⬇️ All CSV</button>
+      <button class="btn-export" onclick="window.print()">🖨️ Full Print</button>
+    </div>
+
+    <div class="report-section">
+      <h2>📌 Project-wise analytics</h2>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>Project</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
+          </thead>
+          <tbody id="rpt-project"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>📍 ब्लॉक-वार सारांश</h2>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>ब्लॉक</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
+          </thead>
+          <tbody id="rpt-block"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>🏘️ ग्राम पंचायत-वार सारांश (शीर्ष 30)</h2>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>ब्लॉक</th><th>ग्राम पंचायत</th><th>कुल</th><th>भरे</th><th>खाली</th><th>%</th></tr>
+          </thead>
+          <tbody id="rpt-gp"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>✅ भरे हुए रिकॉर्ड</h2>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>क्र.</th><th>ब्लॉक</th><th>गाँव</th><th>सदस्य</th><th>प्रकार</th><th>नंबर / रिमार्क</th></tr>
+          </thead>
+          <tbody id="rpt-filled"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="closeModalOverlay(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="modal-title">आधार जानकारी भरें</h2>
+        <div class="modal-person" id="modal-person"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-grid" id="modal-info"></div>
+
+      <div class="form-group">
+        <div class="form-label">जानकारी प्रकार चुनें</div>
+        <div class="radio-group">
+          <div class="radio-opt" id="opt-aadhaar" onclick="selectType('aadhaar')">
+            <div class="radio-icon">🪪</div>
+            <div class="radio-title">आधार कार्ड</div>
+            <div class="radio-sub">12 अंक</div>
+          </div>
+          <div class="radio-opt" id="opt-enrollment" onclick="selectType('enrollment')">
+            <div class="radio-icon">📝</div>
+            <div class="radio-title">एनरोलमेंट नंबर</div>
+            <div class="radio-sub">28 अंक</div>
+          </div>
+          <div class="radio-opt" id="opt-remark" onclick="selectType('remark')">
+            <div class="radio-icon">💬</div>
+            <div class="radio-title">रिमार्क</div>
+            <div class="radio-sub">कोई टिप्पणी</div>
+          </div>
+        </div>
+      </div>
+
+
+      <div id="input-aadhaar" style="display:none">
+        <div class="form-group">
+          <label class="form-label">आधार कार्ड नंबर <span class="required">*</span></label>
+          <input type="tel" class="form-input" id="inp-aadhaar" maxlength="12" placeholder="XXXX XXXX XXXX" oninput="validateAadhaar()">
+          <div class="form-hint">केवल 12 अंक दर्ज करें (बिना स्पेस)</div>
+          <div class="char-count" id="cc-aadhaar"><span class="char-no">0/12</span></div>
+        </div>
+      </div>
+
+      <div id="input-enrollment" style="display:none">
+        <div class="form-group">
+          <label class="form-label">एनरोलमेंट नंबर <span class="required">*</span></label>
+          <input type="tel" class="form-input" id="inp-enrollment" maxlength="28" placeholder="XXXX/XXXXX/XXXXXXXX" oninput="validateEnrollment()">
+          <div class="form-hint">28 अंक दर्ज करें (उदा: 1234/56789/12345678)</div>
+          <div class="char-count" id="cc-enrollment"><span class="char-no">0/28</span></div>
+        </div>
+      </div>
+
+      <div id="input-remark" style="display:none">
+        <div class="form-group">
+          <label class="form-label">उप-विकल्प चुनें:</label>
+          <div class="remark-radio-group" id="remark-preset-group"></div>
+          <div id="remark-other-wrap" style="display:none;margin-top:10px">
+            <input type="text" class="form-input" id="inp-remark-other" placeholder="Specify Reason" oninput="onRemarkOtherInput()">
+          </div>
+          <textarea class="form-input" id="inp-remark" placeholder="यहाँ टिप्पणी लिखें..." style="display:none"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeModal()">रद्द करें</button>
+      <button class="btn btn-save" id="btn-save" onclick="saveEntry()" disabled>💾 सहेजें</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD NEW ENTRY MODAL -->
+<div class="modal-overlay" id="add-modal" style="display:none" onclick="closeAddModalOverlay(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2>➕ नया सदस्य जोड़ें</h2>
+        <div class="modal-person">नई प्रविष्टि — Google Sheet में सीधे सहेजी जाएगी</div>
+      </div>
+      <button class="modal-close" onclick="closeAddModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Project Name <span class="required">*</span></label>
+        <input type="text" class="form-input" id="add-project" placeholder="Project Name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">ब्लॉक <span class="required">*</span></label>
+        <select class="form-input" id="add-block">
+          <option value="">चुनें</option>
+          <option>Dantewada</option>
+          <option>Geedam</option>
+          <option>Katekalyan</option>
+          <option>Kuakonda</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ग्राम पंचायत <span class="required">*</span></label>
+        <input type="text" class="form-input" id="add-gp" placeholder="ग्राम पंचायत का नाम">
+      </div>
+      <div class="form-group">
+        <label class="form-label">गाँव <span class="required">*</span></label>
+        <input type="text" class="form-input" id="add-village" placeholder="गाँव का नाम">
+      </div>
+      <div class="form-group">
+        <label class="form-label">परिवार मुखिया (Head of Family) <span class="required">*</span></label>
+        <input type="text" class="form-input" id="add-hof" placeholder="परिवार मुखिया का नाम">
+      </div>
+      <div class="form-group">
+        <label class="form-label">सदस्य का नाम <span class="required">*</span></label>
+        <input type="text" class="form-input" id="add-member" placeholder="सदस्य का पूरा नाम">
+      </div>
+      <div class="form-group">
+        <label class="form-label">मोबाइल नंबर</label>
+        <input type="tel" class="form-input" id="add-mobile" maxlength="10" placeholder="10 अंकों का मोबाइल नंबर">
+      </div>
+      <div class="form-group">
+        <label class="form-label">लिंग</label>
+        <select class="form-input" id="add-gender">
+          <option value="Male">👨 पुरुष</option>
+          <option value="Female">👩 महिला</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">आयु</label>
+        <input type="number" class="form-input" id="add-age" min="0" max="120" placeholder="आयु (वर्ष में)">
+      </div>
+
+      <div class="form-group">
+        <div class="form-label" style="margin-top:8px">आधार / एनरोलमेंट / रिमार्क (वैकल्पिक — बाद में भी भर सकते हैं)</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">आधार कार्ड नंबर</label>
+        <input type="tel" class="form-input" id="add-aadhaar" maxlength="12" placeholder="12 अंक">
+        <div class="char-count" id="cc-add-aadhaar"><span class="char-no">0/12</span></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">एनरोलमेंट नंबर</label>
+        <input type="tel" class="form-input" id="add-enrollment" maxlength="28" placeholder="28 अंक">
+        <div class="char-count" id="cc-add-enrollment"><span class="char-no">0/28</span></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">रिमार्क</label>
+        <textarea class="form-input" id="add-remark" placeholder="यहाँ टिप्पणी लिखें..."></textarea>
+      </div>
+      <div id="add-error" style="display:none;color:var(--accent);font-size:13px;margin-top:4px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeAddModal()">रद्द करें</button>
+      <button class="btn btn-save" id="btn-add-save" onclick="saveNewEntry()">💾 सहेजें</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js?v=20260806-live-sync"></script>
+<script src="script.js?v=20260806-live-sync"></script>
+</body>
+</html>
