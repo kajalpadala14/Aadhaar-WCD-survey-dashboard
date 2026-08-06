@@ -154,8 +154,19 @@ async function pushToSheet(rec) {
   }
 }
 
+const INITIAL_LOAD_DELAY_MS = 10000;
+
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function initApp() {
   setSyncStatus('🔄 Google Sheet से डेटा आ रहा है...', 'busy');
+  const progressEl = document.getElementById('nav-progress');
+  if (progressEl) progressEl.textContent = '⏳ लोड हो रहा है...';
+
+  await wait(INITIAL_LOAD_DELAY_MS);
+
   renderDashboard();
   populateGPOptions();
   populateVillageOptions();
