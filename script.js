@@ -275,7 +275,7 @@ async function pushToSheet(rec) {
   }
 }
 
-const INITIAL_LOAD_DELAY_MS = 2000;
+const INITIAL_LOAD_DELAY_MS = 500;
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
