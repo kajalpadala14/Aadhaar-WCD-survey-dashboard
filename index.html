@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>आधार डेटा एंट्री — दंतेवाड़ा</title>
+<title>Aadhaar WCD survey</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=20260806-live-sync">
 </head>
 <body>
 
 <nav>
-  <div class="nav-brand">🏛 <span>दंतेवाड़ा</span> आधार सर्वे</div>
+  <div class="nav-brand">🏛 <span>Aadhaar WCD</span> survey</div>
   <div class="nav-tabs">
     <div class="nav-tab active" onclick="switchView('dashboard')">📊 डैशबोर्ड</div>
     <div class="nav-tab" onclick="switchView('entry')">✍️ डेटा एंट्री</div>
@@ -18,7 +18,7 @@
   </div>
   <div class="nav-right">
     <div class="sync-pill" id="sync-status">⚙️ सेटअप बाकी है</div>
-    <button class="sync-btn" onclick="fetchFromSheet()" title="Google Sheet से ताज़ा डेटा लाएं">🔄 सिंक</button>
+    <button class="sync-btn" onclick="fetchFromSheet()" title="Backend से ताज़ा डेटा लाएं">🔄 सिंक</button>
     <div class="progress-pill" id="nav-progress">⏳ लोड हो रहा है...</div>
   </div>
 </nav>
@@ -26,13 +26,13 @@
 <!-- DASHBOARD -->
 <div id="view-dashboard">
   <div class="dash-wrap">
-    <div class="dash-title">आधार डेटा एंट्री डैशबोर्ड</div>
-    <div class="dash-subtitle">NCAER सर्वे — दंतेवाड़ा जिला, छत्तीसगढ़</div>
+    <div class="dash-title">Aadhaar WCD survey Dashboard</div>
+    <div class="dash-subtitle">दंतेवाड़ा जिला, छत्तीसगढ़</div>
 
     <div class="stat-grid">
       <div class="stat-card blue">
         <div class="stat-label">कुल सदस्य</div>
-        <div class="stat-value" id="s-total">7,418</div>
+        <div class="stat-value" id="s-total">0</div>
         <div class="stat-sub">4 ब्लॉक · 165 ग्राम पंचायत</div>
       </div>
       <div class="stat-card green">
@@ -42,7 +42,7 @@
       </div>
       <div class="stat-card orange">
         <div class="stat-label">शेष</div>
-        <div class="stat-value" id="s-pending">7,418</div>
+        <div class="stat-value" id="s-pending">0</div>
         <div class="stat-sub" id="s-pending-pct">100% बाकी</div>
       </div>
       <div class="stat-card yellow">
@@ -83,29 +83,6 @@
           <tbody id="block-table-body"></tbody>
         </table>
       </div>
-    </div>
-
-    <div class="dash-card" style="margin-bottom:24px">
-      <h3>✅ Project-wise progress</h3>
-      <div id="project-progress"></div>
-    </div>
-
-    <div class="dash-card" style="margin-bottom:24px">
-      <h3>📋 Project details</h3>
-      <table class="block-table summary-table">
-        <thead>
-          <tr>
-            <th>Project</th>
-            <th>कुल सदस्य</th>
-            <th>आधार भरे</th>
-            <th>एनरोलमेंट भरे</th>
-            <th>रिमार्क मात्र</th>
-            <th>खाली</th>
-            <th>पूर्णता %</th>
-          </tr>
-        </thead>
-        <tbody id="project-table-body"></tbody>
-      </table>
     </div>
 
     <div class="dash-card" style="margin-bottom:24px">
@@ -172,7 +149,7 @@
               <th>ब्लॉक</th>
               <th>ग्राम पंचायत</th>
               <th>गाँव</th>
-              <th>परिवार मुखिया</th>
+              <th>पिता/मुखिया</th>
               <th>सदस्य</th>
               <th>लिंग / आयु</th>
               <th>स्थिति</th>
@@ -192,19 +169,17 @@
 <div id="view-report">
   <div class="report-wrap">
     <div class="report-head">
-      <h1>📋 आधार डेटा एंट्री रिपोर्ट</h1>
-      <p>NCAER सर्वे — दंतेवाड़ा जिला, छत्तीसगढ़ | रिपोर्ट दिनांक: <span id="report-date"></span></p>
+      <h1>📋 Aadhaar WCD survey Report</h1>
+      <p>दंतेवाड़ा जिला, छत्तीसगढ़ | रिपोर्ट दिनांक: <span id="report-date"></span></p>
       <div class="report-meta">
-        <div class="report-meta-item"><div class="rml">कुल सदस्य</div><div class="rmv" id="rm-total">7,418</div></div>
+        <div class="report-meta-item"><div class="rml">कुल सदस्य</div><div class="rmv" id="rm-total">0</div></div>
         <div class="report-meta-item"><div class="rml">भरे हुए</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
-        <div class="report-meta-item"><div class="rml">खाली</div><div class="rmv" id="rm-pending" style="color:var(--accent)">7,418</div></div>
+        <div class="report-meta-item"><div class="rml">खाली</div><div class="rmv" id="rm-pending" style="color:var(--accent)">0</div></div>
         <div class="report-meta-item"><div class="rml">पूर्णता</div><div class="rmv" id="rm-pct" style="color:var(--accent2)">0%</div></div>
       </div>
     </div>
 
     <div class="export-bar">
-      <button class="btn-export" onclick="downloadSectionExcel('project')">📊 Project Excel</button>
-      <button class="btn-export" onclick="downloadSectionPDF('project')">📄 Project PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('block')">📍 Block Excel</button>
       <button class="btn-export" onclick="downloadSectionPDF('block')">📄 Block PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('gp')">🏘️ GP Excel</button>
@@ -216,23 +191,11 @@
     </div>
 
     <div class="report-section">
-      <h2>📌 Project-wise analytics</h2>
-      <div class="report-table-wrap">
-        <table class="report-table">
-          <thead>
-            <tr><th>Project</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
-          </thead>
-          <tbody id="rpt-project"></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="report-section">
       <h2>📍 ब्लॉक-वार सारांश</h2>
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>ब्लॉक</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
+            <tr><th>ब्लॉक</th><th>कुल सदस्य</th><th>आधार भरे</th><th>दर्ज विवरण भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
           </thead>
           <tbody id="rpt-block"></tbody>
         </table>
@@ -342,7 +305,7 @@
     <div class="modal-head">
       <div>
         <h2>➕ नया सदस्य जोड़ें</h2>
-        <div class="modal-person">नई प्रविष्टि — Google Sheet में सीधे सहेजी जाएगी</div>
+        <div class="modal-person">नई प्रविष्टि सीधे backend में सहेजी जाएगी</div>
       </div>
       <button class="modal-close" onclick="closeAddModal()">✕</button>
     </div>
@@ -372,6 +335,10 @@
       <div class="form-group">
         <label class="form-label">परिवार मुखिया (Head of Family) <span class="required">*</span></label>
         <input type="text" class="form-input" id="add-hof" placeholder="परिवार मुखिया का नाम">
+      </div>
+      <div class="form-group">
+        <label class="form-label">पिताजी का नाम</label>
+        <input type="text" class="form-input" id="add-father" placeholder="पिताजी का नाम">
       </div>
       <div class="form-group">
         <label class="form-label">सदस्य का नाम <span class="required">*</span></label>
@@ -421,7 +388,9 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="config.js?v=20260806-live-sync"></script>
-<script src="script.js?v=20260806-live-sync"></script>
+<script src="config.js?v=20260817-env-config"></script>
+<script src="script.js?v=20260817-father-source-label"></script>
 </body>
 </html>
+
+

@@ -1,3 +1,4 @@
-window.APP_CONFIG = {
-  SHEET_API_URL: "https://script.google.com/macros/s/AKfycbwotcfVysZkjH7hq3eIoJlqJOEF3nEfrGhEC4qmjBcNp76zi7APAdCPOMkUvRvJmPt_/exec"
+// Static fallback for Live Server. Keep this value in sync with .env.
+window.APP_CONFIG = window.APP_CONFIG || {
+  API_BASE_URL: "http://localhost:3001/api/sheet"
 };
