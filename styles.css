@@ -14,6 +14,23 @@
   --danger: #f85149;
   --warn: #d29922;
 }
+
+body.light-mode {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface2: #eef2f7;
+  --surface3: #e4eaf2;
+  --border: #cfd8e3;
+  --accent: #d14b36;
+  --accent2: #0969da;
+  --accent3: #1a7f37;
+  --accent4: #9a6700;
+  --text: #1f2937;
+  --text2: #536170;
+  --text3: #6b7280;
+  --danger: #cf222e;
+  --warn: #9a6700;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
@@ -99,6 +116,41 @@ nav {
   transition: all 0.2s;
 }
 .sync-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, transform 0.2s;
+}
+.theme-toggle:hover {
+  border-color: var(--accent2);
+  color: var(--accent2);
+  transform: translateY(-1px);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent2);
+  outline-offset: 2px;
+}
+.guardian-cell {
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.45;
+  min-width: 180px;
+}
+.guardian-label {
+  color: var(--text3);
+  font-weight: 700;
+}
 
 /* DASHBOARD */
 #view-dashboard { display: block; }
@@ -480,23 +532,38 @@ nav {
   padding: 20px 24px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
+  gap: 14px;
   justify-content: space-between;
   align-items: flex-start;
+}
+.modal-title-wrap,
+.modal-head > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .modal-head h2 {
   font-family: 'Rajdhani', sans-serif;
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 4px;
+  line-height: 1.25;
 }
-.modal-person { font-size: 13px; color: var(--text2); }
+.modal-person {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
 .modal-close {
   background: none;
   border: none;
   color: var(--text2);
   font-size: 20px;
   cursor: pointer;
-  padding: 0 4px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   line-height: 1;
 }
 .modal-close:hover { color: var(--text); }
@@ -847,7 +914,7 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
     width: 100%;
     margin-left: 0;
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     gap: 8px;
   }
 
@@ -867,8 +934,14 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   }
 
   .sync-btn {
-    grid-column: 2 / 3;
+    grid-column: 3 / 4;
     white-space: nowrap;
+  }
+
+  .theme-toggle {
+    grid-column: 2 / 3;
+    width: 32px;
+    height: 32px;
   }
 
   .progress-pill {
@@ -1167,4 +1240,3 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
     min-width: 0;
   }
 }
-

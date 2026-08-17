@@ -7,6 +7,7 @@ const ROOT = __dirname;
 const fileEnv = parseEnvFile(path.join(ROOT, '.env'));
 const PORT = Number(process.env.PORT || fileEnv.PORT) || 3000;
 const BACKEND_API_BASE_URL = process.env.API_BASE_URL || fileEnv.API_BASE_URL || '';
+const SHEET_PROXY_PATHS = new Set(['/api/sheet', '/api/sheet/', '/api/sheetye', '/api/sheetye/']);
 
 function parseEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return {};
@@ -119,7 +120,7 @@ async function proxySheet(req, res) {
       const json = JSON.parse(text);
       if (json && Array.isArray(json.entries)) {
         json.entries = json.entries.map(entry => {
-          const explicitFather = entry.father || entry.father_name || entry['पिताजी का नाम'] || entry['पिता का नाम'] || '';
+          const explicitFather = entry.father || entry.father_name || entry.husband || entry.husbandName || entry.husband_name || entry['पिताजी का नाम'] || entry['पिता का नाम'] || entry['पति का नाम'] || entry['पिता/पति का नाम'] || '';
           const apiFather = entry.fatherName || '';
           const fatherIsSameAsHof = apiFather && entry.hof && String(apiFather).trim() === String(entry.hof).trim();
           const source = explicitFather || (apiFather && !fatherIsSameAsHof) ? 'father' : (entry.hof ? 'hof' : '');
@@ -199,7 +200,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (pathname === '/api/sheet') {
+  if (SHEET_PROXY_PATHS.has(pathname)) {
     proxySheet(req, res);
     return;
   }
@@ -211,11 +212,7 @@ let currentPort = PORT;
 
 function listen(port) {
   currentPort = port;
-  server.listen(port, () => {
-    console.log(`Aadhaar WCD survey running at http://localhost:${port}`);
-    getLanUrls(port).forEach(url => console.log(`LAN access: ${url}`));
-    console.log(BACKEND_API_BASE_URL ? 'API_BASE_URL loaded from env.' : 'API_BASE_URL is empty.');
-  });
+  server.listen(port);
 }
 
 function getLanUrls(port) {
@@ -235,6 +232,14 @@ server.on('error', err => {
   }
 
   throw err;
+});
+
+server.on('listening', () => {
+  const address = server.address();
+  const port = address && address.port ? address.port : currentPort;
+  console.log(`Aadhaar WCD survey running at http://localhost:${port}`);
+  getLanUrls(port).forEach(url => console.log(`LAN access: ${url}`));
+  console.log(BACKEND_API_BASE_URL ? 'API_BASE_URL loaded from env.' : 'API_BASE_URL is empty.');
 });
 
 listen(PORT);

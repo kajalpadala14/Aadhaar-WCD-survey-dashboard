@@ -13,7 +13,38 @@ const HEADER_ALIASES = {
   remark: ['रिमार्क', 'Remark', 'remark']
 };
 
-const REQUIRED_HEADERS = ['sno', 'block', 'gp', 'village', 'member', 'age', 'gender', 'hof', 'entryValue', 'remark'];
+HEADER_ALIASES.fatherName.push('पिता/पति का नाम', 'पिता / पति का नाम', 'पति का नाम', 'Husband Name', 'husbandName', 'husband_name');
+
+HEADER_ALIASES.project = ['Project Name', 'project', 'projectName'];
+HEADER_ALIASES.sno.push('क्र.', 'क्र');
+HEADER_ALIASES.block.push('ब्लॉक');
+HEADER_ALIASES.gp.push('ग्राम पंचायत');
+HEADER_ALIASES.village.push('ग्राम', 'गाँव', 'गांव');
+HEADER_ALIASES.member.push('सदस्य का नाम');
+HEADER_ALIASES.age.push('आयु');
+HEADER_ALIASES.gender.push('लिंग');
+HEADER_ALIASES.maritalStatus.push('वैवाहिक स्थिति');
+HEADER_ALIASES.hof.push('मुखिया का नाम', 'परिवार मुखिया');
+HEADER_ALIASES.fatherName.push('पिताजी का नाम', 'पिता का नाम', 'पिता/पति का नाम', 'पिता / पति का नाम', 'पति का नाम');
+HEADER_ALIASES.entryValue.push('दर्ज विवरण');
+HEADER_ALIASES.remark.push('रिमार्क');
+
+const REQUIRED_HEADERS = ['block', 'gp', 'village', 'member', 'age', 'gender', 'hof', 'entryValue', 'remark'];
+const FALLBACK_COLUMN_INDEXES = {
+  sno: -1,
+  project: 0,
+  block: 1,
+  gp: 2,
+  village: 3,
+  member: 4,
+  age: 5,
+  gender: 6,
+  maritalStatus: 7,
+  hof: 8,
+  fatherName: 9,
+  entryValue: 10,
+  remark: 11
+};
 
 function doGet(e) {
   const action = (e.parameter.action || 'list').toLowerCase();
@@ -45,6 +76,7 @@ function listEntries() {
     return {
       sno: text(valueAt(row, headerMap.sno)) || String(index + 1),
       district: 'Dantewada',
+      project: text(valueAt(row, headerMap.project)),
       block: text(valueAt(row, headerMap.block)),
       gp: text(valueAt(row, headerMap.gp)),
       village: text(valueAt(row, headerMap.village)),
@@ -79,6 +111,7 @@ function saveEntry(payload) {
   const nextSno = payload.sno || valueAt(current, headerMap.sno) || String(targetRow - 1);
 
   setCell(current, headerMap.sno, nextSno);
+  setCell(current, headerMap.project, payload.project);
   setCell(current, headerMap.block, payload.block);
   setCell(current, headerMap.gp, payload.gp);
   setCell(current, headerMap.village, payload.village);
@@ -141,9 +174,10 @@ function getHeaderMap(headers) {
     const aliases = HEADER_ALIASES[key].map(normalizeHeader);
     const index = normalized.findIndex(h => aliases.includes(h));
     if (index === -1 && REQUIRED_HEADERS.includes(key)) {
-      throw new Error('Missing required column: ' + HEADER_ALIASES[key][0]);
+      map[key] = FALLBACK_COLUMN_INDEXES[key];
+      return;
     }
-    map[key] = index;
+    map[key] = index === -1 ? FALLBACK_COLUMN_INDEXES[key] : index;
   });
   return map;
 }

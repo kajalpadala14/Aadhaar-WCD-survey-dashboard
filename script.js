@@ -1,6 +1,6 @@
 ﻿const RAW_DATA = [];
 
-let API_BASE_URL = ((window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || '').trim();
+let API_BASE_URL = ((window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) || '/api/sheet').trim();
 localStorage.removeItem('aadhaar_wcd_api_base_url');
 
 let DATA = JSON.parse(JSON.stringify(RAW_DATA));
@@ -8,6 +8,35 @@ const LOCAL_CACHE_KEY = 'aadhaar_entries_dantewada_v2';
 const OLD_LOCAL_CACHE_KEY = 'aadhaar_entries_dantewada';
 const SYNC_VERSION = '2026-08-06-live-sheet';
 const RAW_BY_SNO = new Map(RAW_DATA.map(record => [Number(record.sno), record]));
+const THEME_KEY = 'aadhaar_wcd_theme';
+const LOCAL_PROXY_PORTS = [
+  3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020,
+  3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009
+];
+
+function applyTheme(theme) {
+  const nextTheme = theme === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('light-mode', nextTheme === 'light');
+  localStorage.setItem(THEME_KEY, nextTheme);
+
+  const btn = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-toggle-icon');
+  const label = nextTheme === 'light' ? 'Dark mode चालू करें' : 'Light mode चालू करें';
+  if (icon) icon.textContent = nextTheme === 'light' ? '🌙' : '☀️';
+  if (btn) {
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+  }
+}
+
+function initTheme() {
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.contains('light-mode');
+  applyTheme(isLight ? 'dark' : 'light');
+}
 
 function isBackendConfigured() {
   return typeof API_BASE_URL === 'string' && (
@@ -48,8 +77,67 @@ async function loadBackendConfig() {
 }
 
 function backendListUrl() {
-  const sep = API_BASE_URL.includes('?') ? '&' : '?';
-  return `${API_BASE_URL}${sep}action=list&_=${Date.now()}`;
+  return backendUrl(API_BASE_URL, { action: 'list', _: Date.now() });
+}
+
+function backendUrl(baseUrl, params) {
+  const sep = baseUrl.includes('?') ? '&' : '?';
+  const query = Object.keys(params)
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  return `${baseUrl}${sep}${query}`;
+}
+
+function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+function isRelativeApiBase() {
+  return API_BASE_URL.indexOf('/') === 0;
+}
+
+function isMissingApiRouteError(message) {
+  return /cannot\s+get\s+\/api\/sheet\w*|not\s+found|failed\s+to\s+fetch/i.test(String(message || ''));
+}
+
+async function parseBackendResponse(res) {
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    throw new Error(extractBackendError(text));
+  }
+  if (!res.ok) {
+    throw new Error(data && data.error ? data.error : 'HTTP ' + res.status);
+  }
+  return data;
+}
+
+async function discoverLocalProxy() {
+  const currentHost = window.location.hostname || 'localhost';
+  const hosts = currentHost === '127.0.0.1' ? ['127.0.0.1', 'localhost'] : ['localhost', '127.0.0.1'];
+  const currentOrigin = window.location.origin;
+
+  for (const port of LOCAL_PROXY_PORTS) {
+    for (const host of hosts) {
+      const base = `http://${host}:${port}/api/sheet`;
+      if (`http://${host}:${port}` === currentOrigin) continue;
+      try {
+        const res = await fetchWithTimeout(backendUrl(base, { action: 'list', _: Date.now() }), { cache: 'no-store' }, 500);
+        const data = await parseBackendResponse(res);
+        if (data && data.ok && Array.isArray(data.entries)) {
+          API_BASE_URL = base;
+          return data;
+        }
+      } catch (e) {}
+    }
+  }
+
+  return null;
 }
 
 function getRecordProject(r) {
@@ -110,13 +198,24 @@ function extractBackendError(text) {
   return (match ? match[1] : cleanText || 'Invalid backend response').slice(0, 180);
 }
 
+function normalizeGender(value) {
+  const raw = String(value || '').trim();
+  const lower = raw.toLowerCase();
+  if (lower === 'female' || raw === 'महिला') return 'Female';
+  if (lower === 'male' || raw === 'पुरुष') return 'Male';
+  return raw || 'Male';
+}
+
 function normalizeSheetRecord(e, index) {
   const base = RAW_BY_SNO.get(Number(e.sno)) || {};
   const project = getRecordProject(e);
-  const sno = Number(e.sno) || 0;
-  const explicitFatherName = (e.father || e.father_name || e['पिताजी का नाम'] || e['पिता का नाम'] || base.fatherName || '').toString().trim();
+  const sno = Number(e.sno || e['क्र.'] || e['क्र']) || 0;
+  const age = Number(e.age || e.Age || e['आयु'] || base.age) || 0;
+  const genderValue = (e.gender || e.Gender || e['लिंग'] || base.gender || '').toString().trim();
+  const maritalStatus = (e.maritalStatus || e.marital_status || e['वैवाहिक स्थिति'] || base.maritalStatus || '').toString().trim();
+  const hof = (e.hof || e.headOfFamily || e.head_of_family || e['मुखिया का नाम'] || e['परिवार मुखिया'] || base.hof || '').toString().trim();
+  const explicitFatherName = (e.father || e.father_name || e.husband || e.husbandName || e.husband_name || e['पिताजी का नाम'] || e['पिता का नाम'] || e['पति का नाम'] || e['पिता/पति का नाम'] || base.fatherName || '').toString().trim();
   const apiFatherName = (e.fatherName || '').toString().trim();
-  const hof = (e.hof || base.hof || '').toString().trim();
   const fatherIsSameAsHof = apiFatherName && hof && apiFatherName === hof;
   const rawFatherName = e.fatherNameSource === 'hof' || fatherIsSameAsHof ? explicitFatherName : (apiFatherName || explicitFatherName);
   return {
@@ -130,11 +229,11 @@ function normalizeSheetRecord(e, index) {
     hof,
     member: (e.member || base.member || '').toString().trim(),
     mobile: (e.mobile || base.mobile || '').toString().trim(),
-    gender: (e.gender || base.gender || '').toString().trim() || 'Male',
-    maritalStatus: (e.maritalStatus || base.maritalStatus || '').toString().trim(),
-    fatherName: rawFatherName || hof,
+    gender: normalizeGender(genderValue),
+    maritalStatus,
+    fatherName: rawFatherName,
     fatherNameSource: e.fatherNameSource || (rawFatherName ? 'father' : (hof ? 'hof' : '')),
-    age: Number(e.age || base.age) || 0,
+    age,
     aadhaar: (e.aadhaar || '').toString().trim(),
     enrollment: (e.enrollment || '').toString().trim(),
     remark: (e.remark || '').toString().trim(),
@@ -144,14 +243,28 @@ function normalizeSheetRecord(e, index) {
 }
 
 function guardianLabel(record) {
-  if (record.fatherNameSource === 'father') return 'पिता';
-  if (record.fatherNameSource === 'hof') return 'परिवार मुखिया (पिता डेटा नहीं)';
-  return 'पिता/मुखिया';
+  return 'पिता/पति/मुखिया';
+}
+
+function guardianParts(record) {
+  const fatherName = String(record.fatherName || '').trim();
+  const hof = String(record.hof || '').trim();
+  const fatherOrHusbandName = fatherName || hof;
+
+  return [
+    { label: 'मुखिया', name: hof || '-' },
+    { label: 'पिता/पति का नाम', name: fatherOrHusbandName || '-' }
+  ];
 }
 
 function guardianDisplay(record) {
-  const name = record.fatherName || record.hof || '-';
-  return `${guardianLabel(record)}: ${name}`;
+  return guardianParts(record).map(part => `${part.label}: ${part.name}`).join(' / ');
+}
+
+function guardianDisplayHtml(record) {
+  return guardianParts(record)
+    .map(part => `<div><span class="guardian-label">${escapeHtml(part.label)}:</span> ${escapeHtml(part.name)}</div>`)
+    .join('');
 }
 
 function applySyncedEntries(entries) {
@@ -177,7 +290,7 @@ function getEntryKind(record) {
   const remark = String(record.remark || '').trim();
 
   if (aadhaarDigits.length === 12 || entryDigits.length === 12 || entryDigits.length === 4) return 'aadhaar';
-  if (enrollmentDigits.length > 0 || entryDigits.length === 28) return 'enrollment';
+  if (enrollmentDigits.length === 28 || entryDigits.length === 28) return 'enrollment';
   if (entryValue) return 'detail';
   if (remark) return 'remark';
   return 'empty';
@@ -217,16 +330,7 @@ async function fetchFromSheet() {
   setSyncStatus('सिंक हो रहा है...', 'busy');
   try {
     const res = await fetch(backendListUrl(), { cache: 'no-store' });
-    const text = await res.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      throw new Error(extractBackendError(text));
-    }
-    if (!res.ok) {
-      throw new Error(data && data.error ? data.error : 'HTTP ' + res.status);
-    }
+    const data = await parseBackendResponse(res);
     if (data && data.ok && Array.isArray(data.entries)) {
       applySyncedEntries(data.entries);
       clearLocalCache();
@@ -237,6 +341,18 @@ async function fetchFromSheet() {
       throw new Error(data && data.error ? data.error : 'invalid response');
     }
   } catch(e) {
+    if (isRelativeApiBase() && isMissingApiRouteError(e.message)) {
+      setSyncStatus('Local backend ढूंढ रहे हैं...', 'busy');
+      const data = await discoverLocalProxy();
+      if (data) {
+        applySyncedEntries(data.entries);
+        clearLocalCache();
+        renderDashboard();
+        applyFilters();
+        setSyncStatus(`सिंक हो गया (${DATA.length.toLocaleString()} रिकॉर्ड)`, 'ok');
+        return;
+      }
+    }
     clearLocalCache();
     resetData();
     renderDashboard();
@@ -266,10 +382,14 @@ async function pushToSheet(rec) {
         aadhaar: rec.aadhaar, enrollment: rec.enrollment, remark: rec.remark
       })
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await parseBackendResponse(res);
     await fetchFromSheet();
     return true;
   } catch(e) {
+    if (isRelativeApiBase() && isMissingApiRouteError(e.message)) {
+      await discoverLocalProxy();
+      if (!isRelativeApiBase()) return pushToSheet(rec);
+    }
     setSyncStatus('अपलोड विफल', 'err');
     return false;
   }
@@ -282,6 +402,7 @@ function wait(ms) {
 }
 
 async function initApp() {
+  initTheme();
   setSyncStatus('Backend से डेटा आ रहा है...', 'busy');
   const progressEl = document.getElementById('nav-progress');
   if (progressEl) progressEl.textContent = 'लोड हो रहा है...';
@@ -342,6 +463,7 @@ function getProjectStats() {
         total: 0,
         aadhaar: 0,
         enrollment: 0,
+        detail: 0,
         remarkOnly: 0,
         filled: 0,
         pending: 0,
@@ -359,8 +481,11 @@ function getProjectStats() {
     if (kind === 'aadhaar') {
       p.aadhaar++;
       p.filled++;
-    } else if (kind === 'enrollment' || kind === 'detail') {
+    } else if (kind === 'enrollment') {
       p.enrollment++;
+      p.filled++;
+    } else if (kind === 'detail') {
+      p.detail++;
       p.filled++;
     } else if (kind === 'remark') {
       p.remarkOnly++;
@@ -510,7 +635,7 @@ function applyFilters() {
     if(status === 'filled' && getEntryKind(r) === 'empty') return false;
     if(status === 'empty' && getEntryKind(r) !== 'empty') return false;
     if(search) {
-      const hay = `${r.member} ${r.hof} ${r.village} ${r.mobile}`.toLowerCase();
+      const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile}`.toLowerCase();
       if(!hay.includes(search)) return false;
     }
     return true;
@@ -605,7 +730,7 @@ function renderTable() {
       <td><span style="font-size:12px;color:var(--text2)">${r.block}</span></td>
       <td style="font-size:12px">${r.gp}</td>
       <td style="font-size:12px">${r.village}</td>
-      <td style="font-size:12px;color:var(--text2)">${guardianDisplay(r)}</td>
+      <td class="guardian-cell">${guardianDisplayHtml(r)}</td>
       <td><strong>${r.member}</strong></td>
       <td style="font-size:12px;color:var(--text2)">${r.gender==='Male'?'पुरुष':'महिला'} / ${r.age|0} वर्ष</td>
       <td>${statusHtml}</td>
@@ -657,11 +782,14 @@ function openModal(rowKey) {
 
   document.getElementById('modal-title').textContent = 'आधार जानकारी भरें';
   document.getElementById('modal-person').textContent = `${rec.member} - ${guardianDisplay(rec)} - ${rec.village}, ${rec.block}`;
+  const guardianInfoHtml = guardianParts(rec)
+    .map(part => `<div class="info-item"><div class="info-key">${escapeHtml(part.label)}</div><div class="info-val">${escapeHtml(part.name)}</div></div>`)
+    .join('');
   document.getElementById('modal-info').innerHTML = `
     <div class="info-item"><div class="info-key">ब्लॉक</div><div class="info-val">${rec.block}</div></div>
     <div class="info-item"><div class="info-key">ग्राम पंचायत</div><div class="info-val">${rec.gp}</div></div>
     <div class="info-item"><div class="info-key">गाँव</div><div class="info-val">${rec.village}</div></div>
-    <div class="info-item"><div class="info-key">${guardianLabel(rec)}</div><div class="info-val">${rec.fatherName || rec.hof || '-'}</div></div>
+    ${guardianInfoHtml}
     <div class="info-item"><div class="info-key">मोबाइल</div><div class="info-val">${rec.mobile||'-'}${/^\d{10}$/.test(rec.mobile||'') ? `<a class="modal-call-btn" href="tel:${rec.mobile}">📞 कॉल करें</a>` : ''}</div></div>
     <div class="info-item"><div class="info-key">लिंग</div><div class="info-val">${rec.gender==='Male'?'पुरुष':'महिला'}</div></div>
     <div class="info-item"><div class="info-key">आयु</div><div class="info-val">${rec.age|0} वर्ष</div></div>`;
@@ -690,6 +818,7 @@ const ENROLLMENT_REQUIRED_REMARK = 'नामांकन करवाया ग
 const REMARK_PRESETS = [
   'व्यक्ति नहीं मिला',
   'जन्म प्रमाण पत्र ऑफलाइन',
+  'माता-पिता का नाम और बच्चे के जन्म प्रमाण पत्र में नाम मेल नहीं खा रहे थे',
   'जन्म प्रमाण पत्र नहीं बनाया गया',
   'माता-पिता के पास आधार कार्ड नहीं है',
   'मृत्यु',
@@ -855,13 +984,14 @@ function renderReport() {
 
   const blocks = ['Dantewada','Geedam','Katekalyan','Kuakonda'];
   const blockStats = {};
-  blocks.forEach(b => blockStats[b] = {total:0,aadhaar:0,enrollment:0,remarkOnly:0,empty:0});
+  blocks.forEach(b => blockStats[b] = {total:0,aadhaar:0,enrollment:0,detail:0,remarkOnly:0,empty:0});
   DATA.forEach(r => {
     if(!blockStats[r.block]) return;
     blockStats[r.block].total++;
     const kind = getEntryKind(r);
     if(kind === 'aadhaar') blockStats[r.block].aadhaar++;
-    else if(kind === 'enrollment' || kind === 'detail') blockStats[r.block].enrollment++;
+    else if(kind === 'enrollment') blockStats[r.block].enrollment++;
+    else if(kind === 'detail') blockStats[r.block].detail++;
     else if(kind === 'remark') blockStats[r.block].remarkOnly++;
     else blockStats[r.block].empty++;
   });
@@ -869,11 +999,11 @@ function renderReport() {
   let bHtml = '';
   blocks.forEach(b => {
     const bs = blockStats[b];
-    const filled = bs.aadhaar+bs.enrollment+bs.remarkOnly;
+    const filled = bs.aadhaar+bs.enrollment+bs.detail+bs.remarkOnly;
     const pctB = bs.total>0?(filled/bs.total*100).toFixed(1):0;
-    bHtml += `<tr><td><strong>${b}</strong></td><td>${bs.total.toLocaleString()}</td><td style="color:var(--accent2)">${bs.aadhaar}</td><td style="color:var(--accent4)">${bs.enrollment}</td><td style="color:var(--accent3)">${bs.remarkOnly}</td><td style="color:var(--accent)">${bs.empty}</td><td><strong>${pctB}%</strong></td></tr>`;
+    bHtml += `<tr><td><strong>${b}</strong></td><td>${bs.total.toLocaleString()}</td><td style="color:var(--accent2)">${bs.aadhaar}</td><td style="color:var(--accent4)">${bs.enrollment}</td><td style="color:var(--accent3)">${bs.detail}</td><td style="color:var(--accent3)">${bs.remarkOnly}</td><td style="color:var(--accent)">${bs.empty}</td><td><strong>${pctB}%</strong></td></tr>`;
   });
-  document.getElementById('rpt-block').innerHTML = bHtml || '<tr><td colspan="7" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
+  document.getElementById('rpt-block').innerHTML = bHtml || '<tr><td colspan="8" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
 
   // GP stats
   const gpStats = {};
@@ -911,8 +1041,8 @@ function renderReport() {
 function exportCSV() {
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
   if(!filled.length) { showToast('कोई भरा हुआ रिकॉर्ड नहीं!'); return; }
-  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Guardian Source','Father/Guardian Name','Member','Mobile','Gender','Age','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Remark'];
-  const rows = filled.map(r => [r.sno,r.district,r.block,r.gp,r.village,guardianLabel(r),r.fatherName || r.hof,r.member,r.mobile,r.gender,r.age,r.aadhaar,r.enrollment,r.entryValue,r.remark]);
+  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Husband Name','Head of Family','Member','Mobile','Gender','Age','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Remark'];
+  const rows = filled.map(r => [r.sno,r.district,r.block,r.gp,r.village,r.fatherName,r.hof,r.member,r.mobile,r.gender,r.age,r.aadhaar,r.enrollment,r.entryValue,r.remark]);
   const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
@@ -939,25 +1069,26 @@ function getReportSectionData(section) {
   if (section === 'block') {
     const blocks = ['Dantewada', 'Geedam', 'Katekalyan', 'Kuakonda'];
     const blockStats = {};
-    blocks.forEach(b => blockStats[b] = { total: 0, aadhaar: 0, enrollment: 0, remarkOnly: 0, empty: 0 });
+    blocks.forEach(b => blockStats[b] = { total: 0, aadhaar: 0, enrollment: 0, detail: 0, remarkOnly: 0, empty: 0 });
     DATA.forEach(r => {
       if (!blockStats[r.block]) return;
       blockStats[r.block].total++;
       const kind = getEntryKind(r);
       if (kind === 'aadhaar') blockStats[r.block].aadhaar++;
-      else if (kind === 'enrollment' || kind === 'detail') blockStats[r.block].enrollment++;
+      else if (kind === 'enrollment') blockStats[r.block].enrollment++;
+      else if (kind === 'detail') blockStats[r.block].detail++;
       else if (kind === 'remark') blockStats[r.block].remarkOnly++;
       else blockStats[r.block].empty++;
     });
     const rows = blocks.map(b => {
       const bs = blockStats[b];
-      const filled = bs.aadhaar + bs.enrollment + bs.remarkOnly;
-      return [b, bs.total, bs.aadhaar, bs.enrollment, bs.remarkOnly, bs.empty, bs.total > 0 ? (filled / bs.total * 100).toFixed(1) + '%' : '0.0%'];
+      const filled = bs.aadhaar + bs.enrollment + bs.detail + bs.remarkOnly;
+      return [b, bs.total, bs.aadhaar, bs.enrollment, bs.detail, bs.remarkOnly, bs.empty, bs.total > 0 ? (filled / bs.total * 100).toFixed(1) + '%' : '0.0%'];
     });
     return {
       title: 'Block-wise summary',
       filename: 'block_wise_summary',
-      headers: ['ब्लॉक', 'कुल सदस्य', 'आधार भरे', 'एनरोलमेंट भरे', 'रिमार्क मात्र', 'खाली', 'पूर्णता %'],
+      headers: ['ब्लॉक', 'कुल सदस्य', 'आधार भरे', 'एनरोलमेंट भरे', 'दर्ज विवरण', 'रिमार्क मात्र', 'खाली', 'पूर्णता %'],
       rows
     };
   }
@@ -1005,7 +1136,7 @@ function getReportSectionData(section) {
     return {
       title: 'Filled records',
       filename: 'filled_records',
-      headers: ['क्र.', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'पिता/मुखिया', 'सदस्य', 'प्रकार', 'नंबर / रिमार्क', 'मोबाइल', 'लिंग', 'आयु'],
+      headers: ['क्र.', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'पिता/पति/मुखिया', 'सदस्य', 'प्रकार', 'नंबर / रिमार्क', 'मोबाइल', 'लिंग', 'आयु'],
       rows
     };
   }
@@ -1220,5 +1351,3 @@ async function saveNewEntry() {
     btn.textContent = 'सहेजें';
   }
 }
-
-
