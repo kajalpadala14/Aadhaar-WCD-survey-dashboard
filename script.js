@@ -10,11 +10,14 @@ const SYNC_VERSION = '2026-08-06-live-sheet';
 const RAW_BY_SNO = new Map(RAW_DATA.map(record => [Number(record.sno), record]));
 
 function isBackendConfigured() {
-  return typeof API_BASE_URL === 'string' && API_BASE_URL.indexOf('http') === 0;
+  return typeof API_BASE_URL === 'string' && (
+    API_BASE_URL.indexOf('http') === 0 ||
+    API_BASE_URL.indexOf('/') === 0
+  );
 }
 
 function backendConfigHelp() {
-  return 'Backend URL missing. .env me API_BASE_URL check karo.';
+  return 'Backend URL missing. .env me API_BASE_URL check karo ya node server se app kholo.';
 }
 
 function parseEnvValue(text, key) {

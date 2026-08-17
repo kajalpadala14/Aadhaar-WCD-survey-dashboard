@@ -1,4 +1,5 @@
 const http = require('http');
+const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
@@ -212,8 +213,17 @@ function listen(port) {
   currentPort = port;
   server.listen(port, () => {
     console.log(`Aadhaar WCD survey running at http://localhost:${port}`);
+    getLanUrls(port).forEach(url => console.log(`LAN access: ${url}`));
     console.log(BACKEND_API_BASE_URL ? 'API_BASE_URL loaded from env.' : 'API_BASE_URL is empty.');
   });
+}
+
+function getLanUrls(port) {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter(Boolean)
+    .filter(item => item.family === 'IPv4' && !item.internal)
+    .map(item => `http://${item.address}:${port}`);
 }
 
 server.on('error', err => {
