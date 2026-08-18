@@ -910,25 +910,26 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
 
 @media (max-width: 640px) {
   nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     position: sticky;
     padding: 8px 12px;
+    gap: 8px;
   }
 
   .nav-brand {
-    width: 100%;
+    grid-column: 1 / 2;
+    grid-row: 1;
+    width: auto;
     margin-right: 0;
     font-size: 17px;
     overflow: hidden;
     text-overflow: ellipsis;
+    align-self: center;
   }
 
   .nav-right {
-    order: 2;
-    width: 100%;
-    margin-left: 0;
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    gap: 8px;
+    display: contents;
   }
 
   .sync-pill,
@@ -941,31 +942,38 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
 
   .sync-pill {
     grid-column: 1 / 2;
+    grid-row: 2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .sync-btn {
-    grid-column: 3 / 4;
+    grid-column: 2 / 3;
+    grid-row: 2;
+    justify-self: end;
     white-space: nowrap;
   }
 
   .theme-toggle {
     grid-column: 2 / 3;
+    grid-row: 1;
+    justify-self: end;
     width: 32px;
     height: 32px;
   }
 
   .progress-pill {
     grid-column: 1 / -1;
+    grid-row: 3;
     text-align: center;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
   .nav-tabs {
-    order: 3;
+    grid-column: 1 / -1;
+    grid-row: 4;
   }
 
   .nav-tab {
@@ -1205,13 +1213,7 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   }
 
   .nav-right {
-    grid-template-columns: 38px 38px minmax(0, 1fr);
-    align-items: stretch;
-    gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px;
+    display: contents;
   }
 
   .theme-toggle,
@@ -1238,7 +1240,8 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   }
 
   .sync-pill {
-    grid-column: 3 / 4;
+    grid-column: 1 / 2;
+    grid-row: 2;
     min-height: 38px;
     display: flex;
     align-items: center;
@@ -1248,6 +1251,7 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
 
   .progress-pill {
     grid-column: 1 / -1;
+    grid-row: 3;
     padding: 9px 10px;
     font-size: 12px;
   }
