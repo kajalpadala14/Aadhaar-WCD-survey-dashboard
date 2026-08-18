@@ -8,7 +8,7 @@ const LOCAL_CACHE_KEY = 'aadhaar_entries_dantewada_v2';
 const OLD_LOCAL_CACHE_KEY = 'aadhaar_entries_dantewada';
 const SYNC_VERSION = '2026-08-06-live-sheet';
 const RAW_BY_SNO = new Map(RAW_DATA.map(record => [Number(record.sno), record]));
-const THEME_KEY = 'aadhaar_wcd_theme';
+const THEME_KEY = 'aadhaar_wcd_theme_v2';
 const LOCAL_PROXY_PORTS = [
   3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020,
   3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009
@@ -30,7 +30,7 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+  applyTheme(localStorage.getItem(THEME_KEY) || 'light');
 }
 
 function toggleTheme() {
@@ -238,6 +238,7 @@ function normalizeSheetRecord(e, index) {
     enrollment: (e.enrollment || '').toString().trim(),
     remark: (e.remark || '').toString().trim(),
     entryValue: (e.entryValue || base.entryValue || '').toString().trim(),
+    entryTime: normalizeEntryTime(e.entryTime || e.entry_time || e.savedAt || e.saved_at || e.time || e.Time || e.timestamp || e.Timestamp || e['समय'] || e['टाइम'] || base.entryTime || ''),
     deleted: e.deleted === true || e.deleted === 'TRUE'
   };
 }
@@ -267,9 +268,38 @@ function guardianDisplayHtml(record) {
     .join('');
 }
 
+function recordTimeKey(record) {
+  const sno = Number(record && record.sno);
+  if (sno) return `sno:${sno}`;
+  return [
+    'row',
+    getRecordProject(record),
+    record && record.block,
+    record && record.gp,
+    record && record.village,
+    record && record.hof,
+    record && record.member,
+    record && record.mobile
+  ]
+    .map(value => String(value || '').trim().toLowerCase())
+    .join('|');
+}
+
 function applySyncedEntries(entries) {
+  const existingTimes = new Map(
+    DATA
+      .filter(record => normalizeEntryTime(record.entryTime))
+      .map(record => [recordTimeKey(record), record.entryTime])
+  );
+
   DATA = entries
     .map((entry, index) => normalizeSheetRecord(entry, index))
+    .map(entry => {
+      if (!normalizeEntryTime(entry.entryTime)) {
+        entry.entryTime = existingTimes.get(recordTimeKey(entry)) || '';
+      }
+      return entry;
+    })
     .filter(entry => !entry.deleted && (entry.project || entry.member || entry.hof || entry.block || entry.gp || entry.village));
   filteredData = [...DATA];
 }
@@ -280,6 +310,32 @@ function hasEntryDetail(record) {
 
 function digitsOnly(value) {
   return String(value || '').replace(/\D/g, '');
+}
+
+function createEntryTimestamp() {
+  return new Date().toISOString();
+}
+
+function normalizeEntryTime(value) {
+  return String(value || '').trim();
+}
+
+function formatEntryTime(value) {
+  const raw = normalizeEntryTime(value);
+  if (!raw) return '-';
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString('hi-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  return raw;
 }
 
 function getEntryKind(record) {
@@ -379,7 +435,12 @@ async function pushToSheet(rec) {
         gender: rec.gender, age: rec.age,
         fatherName: rec.fatherName || '',
         entryValue: rec.aadhaar || rec.enrollment || '',
-        aadhaar: rec.aadhaar, enrollment: rec.enrollment, remark: rec.remark
+        aadhaar: rec.aadhaar, enrollment: rec.enrollment, remark: rec.remark,
+        entryTime: rec.entryTime || '',
+        time: rec.entryTime || '',
+        Time: rec.entryTime || '',
+        'Entry Time': rec.entryTime || '',
+        'समय': rec.entryTime || ''
       })
     });
     await parseBackendResponse(res);
@@ -704,7 +765,7 @@ function renderTable() {
   const tbody = document.getElementById('records-tbody');
 
   if(filteredData.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state"><div class="es-icon">🔍</div><p>कोई रिकॉर्ड नहीं मिला</p></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="es-icon">🔍</div><p>कोई रिकॉर्ड नहीं मिला</p></div></td></tr>`;
     document.getElementById('table-info').textContent = '0 रिकॉर्ड';
     document.getElementById('pagination').innerHTML = '';
     return;
@@ -734,6 +795,7 @@ function renderTable() {
       <td><strong>${r.member}</strong></td>
       <td style="font-size:12px;color:var(--text2)">${r.gender==='Male'?'पुरुष':'महिला'} / ${r.age|0} वर्ष</td>
       <td>${statusHtml}</td>
+      <td class="time-cell">${escapeHtml(formatEntryTime(r.entryTime))}</td>
       <td>${callCellHtml}</td>
       <td><button class="edit-btn" onclick="openModal('${r._uiKey || String(r.sno)}')">संपादित</button></td>
     </tr>`;
@@ -952,6 +1014,7 @@ async function saveEntry() {
     const v = document.getElementById('inp-remark').value.trim();
     rec.remark = v; rec.aadhaar = ''; rec.enrollment = '';
   }
+  rec.entryTime = createEntryTimestamp();
 
   closeModal();
   renderTable();
@@ -1026,14 +1089,14 @@ function renderReport() {
   // Filled records
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
   if(filled.length===0) {
-    document.getElementById('rpt-filled').innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="es-icon">📭</div><p>अभी कोई रिकॉर्ड भरा नहीं गया है।<br>डेटा एंट्री टैब पर जाएं और शुरू करें।</p></div></td></tr>';
+    document.getElementById('rpt-filled').innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>अभी कोई रिकॉर्ड भरा नहीं गया है।<br>डेटा एंट्री टैब पर जाएं और शुरू करें।</p></div></td></tr>';
   } else {
     let fHtml = '';
     filled.forEach((r,i) => {
       const kind = getEntryKind(r);
       const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'दर्ज विवरण' : 'रिमार्क';
       const val = r.aadhaar || r.enrollment || r.entryValue || r.remark;
-      fHtml += `<tr><td>${i+1}</td><td style="font-size:12px">${r.block}</td><td style="font-size:12px">${r.village}</td><td><strong>${r.member}</strong><br><span style="font-size:11px;color:var(--text3)">${guardianDisplay(r)}</span></td><td>${type}</td><td style="font-family:monospace;font-size:13px;letter-spacing:1px">${val}</td></tr>`;
+      fHtml += `<tr><td>${i+1}</td><td style="font-size:12px">${r.block}</td><td style="font-size:12px">${r.village}</td><td><strong>${r.member}</strong><br><span style="font-size:11px;color:var(--text3)">${guardianDisplay(r)}</span></td><td>${type}</td><td style="font-family:monospace;font-size:13px;letter-spacing:1px">${val}</td><td class="time-cell">${escapeHtml(formatEntryTime(r.entryTime))}</td></tr>`;
     });
     document.getElementById('rpt-filled').innerHTML = fHtml;
   }
@@ -1043,8 +1106,8 @@ function renderReport() {
 function exportCSV() {
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
   if(!filled.length) { showToast('कोई भरा हुआ रिकॉर्ड नहीं!'); return; }
-  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Husband Name','Head of Family','Member','Mobile','Gender','Age','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Remark'];
-  const rows = filled.map(r => [r.sno,r.district,r.block,r.gp,r.village,r.fatherName,r.hof,r.member,r.mobile,r.gender,r.age,r.aadhaar,r.enrollment,r.entryValue,r.remark]);
+  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Husband Name','Head of Family','Member','Mobile','Gender','Age','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Remark','Entry Time'];
+  const rows = filled.map(r => [r.sno,r.district,r.block,r.gp,r.village,r.fatherName,r.hof,r.member,r.mobile,r.gender,r.age,r.aadhaar,r.enrollment,r.entryValue,r.remark,formatEntryTime(r.entryTime)]);
   const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
@@ -1130,6 +1193,7 @@ function getReportSectionData(section) {
         r.member,
         type,
         value,
+        formatEntryTime(r.entryTime),
         r.mobile,
         r.gender,
         r.age
@@ -1138,7 +1202,7 @@ function getReportSectionData(section) {
     return {
       title: 'Filled records',
       filename: 'filled_records',
-      headers: ['क्र.', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'पिता/पति/मुखिया', 'सदस्य', 'प्रकार', 'नंबर / रिमार्क', 'मोबाइल', 'लिंग', 'आयु'],
+      headers: ['क्र.', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'पिता/पति/मुखिया', 'सदस्य', 'प्रकार', 'नंबर / रिमार्क', 'समय', 'मोबाइल', 'लिंग', 'आयु'],
       rows
     };
   }
@@ -1317,8 +1381,13 @@ async function saveNewEntry() {
     fatherName,
     gender, age: age || 0,
     entryValue: aadhaar || enrollment,
-    aadhaar, enrollment, remark
+    aadhaar, enrollment, remark,
+    entryTime: createEntryTimestamp()
   };
+  payload.time = payload.entryTime;
+  payload.Time = payload.entryTime;
+  payload['Entry Time'] = payload.entryTime;
+  payload['समय'] = payload.entryTime;
 
   if (!isBackendConfigured()) {
     errEl.textContent = backendConfigHelp();

@@ -115,6 +115,14 @@ nav {
   cursor: pointer;
   transition: all 0.2s;
 }
+.sync-btn,
+.sync-icon,
+.sync-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sync-btn { gap: 4px; }
 .sync-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 .theme-toggle {
   width: 34px;
@@ -401,7 +409,7 @@ nav {
   font-weight: 700;
 }
 .table-info { font-size: 13px; color: var(--text2); }
-.records-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 13px; }
+.records-table { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: 13px; }
 .records-table th {
   background: var(--surface3);
   padding: 10px 12px;
@@ -420,6 +428,11 @@ nav {
 }
 .records-table tr:last-child td { border-bottom: none; }
 .records-table tr:hover td { background: var(--surface2); }
+.time-cell {
+  color: var(--text2);
+  font-size: 12px;
+  white-space: nowrap;
+}
 
 .status-dot {
   display: inline-block;
@@ -947,6 +960,8 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   .progress-pill {
     grid-column: 1 / -1;
     text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .nav-tabs {
@@ -1180,6 +1195,55 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
     right: 12px;
     bottom: 12px;
     text-align: center;
+  }
+}
+
+@media (max-width: 420px) {
+  nav {
+    padding: 8px;
+  }
+
+  .nav-right {
+    grid-template-columns: minmax(0, 1fr) 34px 34px;
+    gap: 6px;
+  }
+
+  .theme-toggle,
+  .sync-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    padding: 0;
+  }
+
+  .sync-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .sync-pill,
+  .progress-pill {
+    border-radius: 10px;
+    line-height: 1.25;
+  }
+
+  .sync-pill {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+  }
+
+  .progress-pill {
+    padding: 8px 10px;
+  }
+
+  .nav-tab {
+    padding: 10px 12px;
+    font-size: 12px;
   }
 }
 
