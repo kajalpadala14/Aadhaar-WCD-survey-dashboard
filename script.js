@@ -344,9 +344,10 @@ function getEntryKind(record) {
   const entryDigits = digitsOnly(record.entryValue);
   const entryValue = String(record.entryValue || '').trim();
   const remark = String(record.remark || '').trim();
+  const isPrefixedEnrollment = /^s\d{27}$/i.test(entryValue);
 
   if (aadhaarDigits.length === 12 || entryDigits.length === 12 || entryDigits.length === 4) return 'aadhaar';
-  if (enrollmentDigits.length === 28 || entryDigits.length === 28) return 'enrollment';
+  if (enrollmentDigits.length === 28 || entryDigits.length === 28 || isPrefixedEnrollment) return 'enrollment';
   if (entryValue) return 'detail';
   if (remark) return 'remark';
   return 'empty';

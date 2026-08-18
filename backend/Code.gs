@@ -1,33 +1,42 @@
 const HEADER_ALIASES = {
   sno: ['क्र.', 'क्र', 'S.No.', 'S.No', 'sno', 'serial'],
+  project: ['Project Name', 'project', 'projectName'],
   block: ['ब्लॉक', 'Block', 'block'],
   gp: ['ग्राम पंचायत', 'Gram Panchayat', 'GP', 'gp'],
-  village: ['ग्राम', 'गाँव', 'Village', 'village'],
+  village: ['ग्राम', 'गाँव', 'गांव', 'Village', 'village'],
   member: ['सदस्य का नाम', 'Member', 'member', 'Name'],
   age: ['आयु', 'Age', 'age'],
   gender: ['लिंग', 'Gender', 'gender'],
   maritalStatus: ['वैवाहिक स्थिति', 'Marital Status', 'maritalStatus'],
   hof: ['मुखिया का नाम', 'परिवार मुखिया', 'Head of Family', 'hof'],
-  fatherName: ['पिताजी का नाम', 'पिता का नाम', 'Father Name', 'fatherName'],
+  fatherName: [
+    'पिताजी का नाम',
+    'पिता का नाम',
+    'पिता/पति का नाम',
+    'पिता / पति का नाम',
+    'पति का नाम',
+    'Father Name',
+    'fatherName',
+    'Husband Name',
+    'husbandName',
+    'husband_name'
+  ],
   entryValue: ['दर्ज विवरण', 'Entry Detail', 'Entry Value', 'aadhaar', 'enrollment'],
-  remark: ['रिमार्क', 'Remark', 'remark']
+  remark: ['रिमार्क', 'Remark', 'remark'],
+  entryTime: [
+    'समय',
+    'टाइम',
+    'Entry Time',
+    'entryTime',
+    'entry_time',
+    'time',
+    'Time',
+    'timestamp',
+    'Timestamp',
+    'savedAt',
+    'saved_at'
+  ]
 };
-
-HEADER_ALIASES.fatherName.push('पिता/पति का नाम', 'पिता / पति का नाम', 'पति का नाम', 'Husband Name', 'husbandName', 'husband_name');
-
-HEADER_ALIASES.project = ['Project Name', 'project', 'projectName'];
-HEADER_ALIASES.sno.push('क्र.', 'क्र');
-HEADER_ALIASES.block.push('ब्लॉक');
-HEADER_ALIASES.gp.push('ग्राम पंचायत');
-HEADER_ALIASES.village.push('ग्राम', 'गाँव', 'गांव');
-HEADER_ALIASES.member.push('सदस्य का नाम');
-HEADER_ALIASES.age.push('आयु');
-HEADER_ALIASES.gender.push('लिंग');
-HEADER_ALIASES.maritalStatus.push('वैवाहिक स्थिति');
-HEADER_ALIASES.hof.push('मुखिया का नाम', 'परिवार मुखिया');
-HEADER_ALIASES.fatherName.push('पिताजी का नाम', 'पिता का नाम', 'पिता/पति का नाम', 'पिता / पति का नाम', 'पति का नाम');
-HEADER_ALIASES.entryValue.push('दर्ज विवरण');
-HEADER_ALIASES.remark.push('रिमार्क');
 
 const REQUIRED_HEADERS = ['block', 'gp', 'village', 'member', 'age', 'gender', 'hof', 'entryValue', 'remark'];
 const FALLBACK_COLUMN_INDEXES = {
@@ -43,7 +52,8 @@ const FALLBACK_COLUMN_INDEXES = {
   hof: 8,
   fatherName: 9,
   entryValue: 10,
-  remark: 11
+  remark: 11,
+  entryTime: -1
 };
 
 function doGet(e) {
@@ -89,7 +99,8 @@ function listEntries() {
       aadhaar: onlyDigits(entryValue).length === 12 ? onlyDigits(entryValue) : '',
       enrollment: onlyDigits(entryValue).length === 28 ? onlyDigits(entryValue) : '',
       remark: text(valueAt(row, headerMap.remark)),
-      entryValue
+      entryValue,
+      entryTime: text(valueAt(row, headerMap.entryTime))
     };
   }).filter(entry => entry.member || entry.hof || entry.block || entry.gp || entry.village);
 }
@@ -99,6 +110,8 @@ function saveEntry(payload) {
   const values = sheet.getDataRange().getValues();
   const headers = values.length ? values[0] : [];
   const headerMap = getHeaderMap(headers);
+  ensureOptionalHeader(sheet, headers, headerMap, 'entryTime', 'Entry Time');
+
   const rowNumber = findRowNumber(values, headerMap, payload);
   const targetRow = rowNumber || Math.max(sheet.getLastRow() + 1, 2);
   const current = targetRow <= sheet.getLastRow()
@@ -108,6 +121,7 @@ function saveEntry(payload) {
   const aadhaar = onlyDigits(payload.aadhaar);
   const enrollment = onlyDigits(payload.enrollment);
   const entryValue = aadhaar || enrollment || text(payload.entryValue);
+  const entryTime = getPayloadEntryTime(payload);
   const nextSno = payload.sno || valueAt(current, headerMap.sno) || String(targetRow - 1);
 
   setCell(current, headerMap.sno, nextSno);
@@ -125,6 +139,7 @@ function saveEntry(payload) {
   setCell(current, headerMap.fatherName, payload.fatherName);
   setCell(current, headerMap.entryValue, entryValue);
   setCell(current, headerMap.remark, payload.remark);
+  setCell(current, headerMap.entryTime, entryTime);
 
   sheet.getRange(targetRow, 1, 1, headers.length).setValues([current.slice(0, headers.length)]);
   return {
@@ -135,8 +150,33 @@ function saveEntry(payload) {
     member: text(payload.member),
     aadhaar,
     enrollment,
-    remark: text(payload.remark)
+    remark: text(payload.remark),
+    entryTime
   };
+}
+
+function ensureOptionalHeader(sheet, headers, headerMap, key, label) {
+  if (headerMap[key] >= 0) return;
+  const nextIndex = headers.length;
+  sheet.getRange(1, nextIndex + 1).setValue(label);
+  headers.push(label);
+  headerMap[key] = nextIndex;
+}
+
+function getPayloadEntryTime(payload) {
+  return text(
+    payload.entryTime ||
+    payload.entry_time ||
+    payload.time ||
+    payload.Time ||
+    payload.timestamp ||
+    payload.Timestamp ||
+    payload.savedAt ||
+    payload.saved_at ||
+    payload['Entry Time'] ||
+    payload['समय'] ||
+    payload['टाइम']
+  );
 }
 
 function findRowNumber(values, headerMap, payload) {
