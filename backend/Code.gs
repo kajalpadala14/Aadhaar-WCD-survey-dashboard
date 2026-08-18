@@ -118,7 +118,9 @@ function saveEntry(payload) {
   setCell(current, headerMap.member, payload.member);
   setCell(current, headerMap.age, payload.age || 0);
   setCell(current, headerMap.gender, payload.gender);
-  setCell(current, headerMap.maritalStatus, payload.maritalStatus);
+  if (Object.prototype.hasOwnProperty.call(payload, 'maritalStatus')) {
+    setCell(current, headerMap.maritalStatus, payload.maritalStatus);
+  }
   setCell(current, headerMap.hof, payload.hof);
   setCell(current, headerMap.fatherName, payload.fatherName);
   setCell(current, headerMap.entryValue, entryValue);

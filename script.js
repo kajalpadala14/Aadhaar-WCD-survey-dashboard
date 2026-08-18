@@ -432,7 +432,7 @@ async function pushToSheet(rec) {
         action: 'save',
         sno: rec.sno, project: getRecordProject(rec), district: rec.district, block: rec.block, gp: rec.gp,
         village: rec.village, hof: rec.hof, member: rec.member, mobile: rec.mobile,
-        gender: rec.gender, age: rec.age,
+        gender: rec.gender, maritalStatus: rec.maritalStatus || '', age: rec.age,
         fatherName: rec.fatherName || '',
         entryValue: rec.aadhaar || rec.enrollment || '',
         aadhaar: rec.aadhaar, enrollment: rec.enrollment, remark: rec.remark,
