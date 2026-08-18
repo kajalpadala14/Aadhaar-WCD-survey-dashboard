@@ -688,13 +688,13 @@ function applyFilters() {
   const gender = document.getElementById('filter-gender').value;
 
   filteredData = DATA.filter(r => {
-    if(hasEntryDetail(r)) return false;
     if(block && r.block !== block) return false;
     if(gp && r.gp !== gp) return false;
     if(village && r.village !== village) return false;
     if(gender && r.gender !== gender) return false;
-    if(status === 'filled' && getEntryKind(r) === 'empty') return false;
-    if(status === 'empty' && getEntryKind(r) !== 'empty') return false;
+    const entryKind = getEntryKind(r);
+    if(status === 'filled' && entryKind === 'empty') return false;
+    if(status === 'empty' && entryKind !== 'empty') return false;
     if(search) {
       const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile}`.toLowerCase();
       if(!hay.includes(search)) return false;
