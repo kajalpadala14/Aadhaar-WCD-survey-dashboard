@@ -751,6 +751,46 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   gap: 6px;
 }
 .btn-export:hover { border-color: var(--accent2); color: var(--accent2); }
+.btn-mini-action {
+  background: rgba(121,192,255,0.12);
+  border: 1px solid rgba(121,192,255,0.45);
+  border-radius: 6px;
+  color: var(--accent2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 64px;
+  padding: 6px 10px;
+  transition: all 0.2s;
+}
+.btn-mini-action:hover {
+  background: rgba(121,192,255,0.2);
+  border-color: var(--accent2);
+}
+.modal-wide {
+  max-width: 1040px;
+}
+.reason-preview-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 60vh;
+  overflow: auto;
+}
+.reason-preview-table {
+  min-width: 980px;
+  font-size: 12px;
+}
+.reason-preview-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.reason-preview-table td,
+.reason-preview-table th {
+  padding: 8px 10px;
+  vertical-align: top;
+}
 
 .pagination {
   display: flex;

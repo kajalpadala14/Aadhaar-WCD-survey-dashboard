@@ -9,6 +9,8 @@ const OLD_LOCAL_CACHE_KEY = 'aadhaar_entries_dantewada';
 const SYNC_VERSION = '2026-08-06-live-sheet';
 const RAW_BY_SNO = new Map(RAW_DATA.map(record => [Number(record.sno), record]));
 const THEME_KEY = 'aadhaar_wcd_theme_v2';
+let REASON_REPORT_ROWS = [];
+let currentReasonPreview = null;
 const LOCAL_PROXY_PORTS = [
   3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020,
   3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009
@@ -1179,14 +1181,15 @@ function renderReport() {
 
   // Reason stats
   const reasonReport = getReasonReportData();
+  REASON_REPORT_ROWS = reasonReport.rows;
   let reasonHtml = '';
   reasonReport.rows.forEach((r, i) => {
-    reasonHtml += `<tr><td>${i + 1}</td><td>${escapeHtml(r.reason)}</td><td>${r.total.toLocaleString()}</td></tr>`;
+    reasonHtml += `<tr><td>${i + 1}</td><td>${escapeHtml(r.reason)}</td><td>${r.total.toLocaleString()}</td><td><button class="btn-mini-action" onclick="openReasonPreview(${i})">देखें</button></td></tr>`;
   });
   if (reasonReport.rows.length) {
-    reasonHtml += `<tr class="total-row"><td colspan="2"><strong>कुल</strong></td><td><strong>${reasonReport.totals.total.toLocaleString()}</strong></td></tr>`;
+    reasonHtml += `<tr class="total-row"><td colspan="2"><strong>कुल</strong></td><td><strong>${reasonReport.totals.total.toLocaleString()}</strong></td><td></td></tr>`;
   }
-  document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
+  document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
 
   // Filled records
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
@@ -1309,13 +1312,55 @@ function buildExportTableHtml(report) {
   return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-function downloadSectionExcel(section) {
-  const report = getReportSectionData(section);
-  if (!report || !report.rows.length) {
-    showToast('इस रिपोर्ट में डेटा नहीं है!');
-    return;
-  }
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+function getReasonDetailRows(reason) {
+  const selectedReason = String(reason || '').trim();
+  return DATA
+    .filter(r => String(r.remark || '').trim() === selectedReason)
+    .sort((a, b) => {
+      const blockCompare = String(a.block || '').localeCompare(String(b.block || ''), 'hi');
+      if (blockCompare) return blockCompare;
+      const gpCompare = String(a.gp || '').localeCompare(String(b.gp || ''), 'hi');
+      if (gpCompare) return gpCompare;
+      return String(a.village || '').localeCompare(String(b.village || ''), 'hi');
+    });
+}
+
+function getReasonDetailReportData(reason) {
+  const rows = getReasonDetailRows(reason);
+  const exportRows = rows.map((r, i) => [
+    i + 1,
+    r.block,
+    r.gp,
+    r.village,
+    r.member,
+    guardianDisplay(r),
+    r.mobile,
+    r.gender === 'Male' ? 'पुरुष' : 'महिला',
+    r.age,
+    r.remark,
+    formatEntryTime(r.entryTime)
+  ]);
+  exportRows.push(['कुल', '', '', '', rows.length, '', '', '', '', String(reason || '').trim(), '']);
+  return {
+    title: `Reason detail report - ${String(reason || '').trim()}`,
+    filename: `reason_detail_${safeFilePart(reason)}`,
+    headers: ['क्र.', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'सदस्य', 'पिता/पति/मुखिया', 'मोबाइल', 'लिंग', 'आयु', 'कारण', 'समय'],
+    rows: exportRows,
+    recordCount: rows.length
+  };
+}
+
+function safeFilePart(value) {
+  return String(value || 'reason')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_\u0900-\u097f-]/gi, '')
+    .slice(0, 80) || 'reason';
+}
+
+function buildExcelHtml(report) {
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       body{font-family:Noto Sans Devanagari,Arial,sans-serif}
       h2{margin:0 0 6px}
@@ -1328,6 +1373,10 @@ function downloadSectionExcel(section) {
     <p>Aadhaar WCD survey | ${new Date().toLocaleDateString('hi-IN')}</p>
     ${buildExportTableHtml(report)}
     </body></html>`;
+}
+
+function downloadExcelReport(report) {
+  const html = buildExcelHtml(report);
   const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1336,6 +1385,64 @@ function downloadSectionExcel(section) {
   a.click();
   URL.revokeObjectURL(url);
   showToast('Excel डाउनलोड हो रही है!');
+}
+
+function openReasonPreview(index) {
+  const item = REASON_REPORT_ROWS[index];
+  if (!item) {
+    showToast('कारण डेटा नहीं मिला!');
+    return;
+  }
+  const rows = getReasonDetailRows(item.reason);
+  if (!rows.length) {
+    showToast('इस कारण में रिकॉर्ड नहीं है!');
+    return;
+  }
+
+  currentReasonPreview = { reason: item.reason, rows };
+  document.getElementById('reason-preview-title').textContent = item.reason;
+  document.getElementById('reason-preview-count').textContent = `${rows.length.toLocaleString()} रिकॉर्ड देखें, फिर Excel डाउनलोड करें`;
+  document.getElementById('reason-preview-rows').innerHTML = rows.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.block)}</td>
+      <td>${escapeHtml(r.gp)}</td>
+      <td>${escapeHtml(r.village)}</td>
+      <td><strong>${escapeHtml(r.member)}</strong></td>
+      <td>${escapeHtml(guardianDisplay(r))}</td>
+      <td>${escapeHtml(r.mobile || '-')}</td>
+      <td>${r.gender === 'Male' ? 'पुरुष' : 'महिला'}</td>
+      <td>${escapeHtml(r.age || '-')}</td>
+      <td>${escapeHtml(formatEntryTime(r.entryTime))}</td>
+    </tr>
+  `).join('');
+  document.getElementById('reason-preview-download').disabled = false;
+  document.getElementById('reason-preview-modal').style.display = 'flex';
+}
+
+function closeReasonPreview() {
+  document.getElementById('reason-preview-modal').style.display = 'none';
+}
+
+function closeReasonPreviewOverlay(e) {
+  if (e.target === document.getElementById('reason-preview-modal')) closeReasonPreview();
+}
+
+function downloadCurrentReasonExcel() {
+  if (!currentReasonPreview || !currentReasonPreview.rows.length) {
+    showToast('पहले कोई कारण देखें।');
+    return;
+  }
+  downloadExcelReport(getReasonDetailReportData(currentReasonPreview.reason));
+}
+
+function downloadSectionExcel(section) {
+  const report = getReportSectionData(section);
+  if (!report || !report.rows.length) {
+    showToast('इस रिपोर्ट में डेटा नहीं है!');
+    return;
+  }
+  downloadExcelReport(report);
 }
 
 function downloadSectionPDF(section) {

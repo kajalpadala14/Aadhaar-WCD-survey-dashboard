@@ -216,7 +216,7 @@
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>क्र.</th><th>कारण</th><th>कुल</th></tr>
+            <tr><th>क्र.</th><th>कारण</th><th>कुल</th><th>कार्य</th></tr>
           </thead>
           <tbody id="rpt-reason"></tbody>
         </table>
@@ -407,9 +407,46 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="reason-preview-modal" style="display:none" onclick="closeReasonPreviewOverlay(event)">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <div class="modal-title-wrap">
+        <h2 id="reason-preview-title">कारण-वार रिकॉर्ड</h2>
+        <div class="modal-person" id="reason-preview-count"></div>
+      </div>
+      <button class="modal-close" onclick="closeReasonPreview()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="reason-preview-table-wrap">
+        <table class="report-table reason-preview-table">
+          <thead>
+            <tr>
+              <th>क्र.</th>
+              <th>ब्लॉक</th>
+              <th>ग्राम पंचायत</th>
+              <th>गाँव</th>
+              <th>सदस्य</th>
+              <th>पिता/पति/मुखिया</th>
+              <th>मोबाइल</th>
+              <th>लिंग</th>
+              <th>आयु</th>
+              <th>समय</th>
+            </tr>
+          </thead>
+          <tbody id="reason-preview-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeReasonPreview()">बंद करें</button>
+      <button class="btn btn-save" id="reason-preview-download" onclick="downloadCurrentReasonExcel()">Excel डाउनलोड करें</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="config.js?v=20260817-live-server-api"></script>
-<script src="script.js?v=20260820-reason-no-percent"></script>
+<script src="script.js?v=20260820-reason-preview-excel"></script>
 </body>
 </html>
