@@ -191,6 +191,8 @@
       <button class="btn-export" onclick="downloadSectionPDF('block')">📄 Block PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('gp')">🏘️ GP Excel</button>
       <button class="btn-export" onclick="downloadSectionPDF('gp')">📄 GP PDF</button>
+      <button class="btn-export" onclick="downloadSectionExcel('reason')">💬 Reason Excel</button>
+      <button class="btn-export" onclick="downloadSectionPDF('reason')">📄 Reason PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('filled')">✅ Filled Excel</button>
       <button class="btn-export" onclick="downloadSectionPDF('filled')">📄 Filled PDF</button>
       <button class="btn-export" onclick="exportCSV()">⬇️ All CSV</button>
@@ -202,7 +204,7 @@
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
-            <tr><th>ब्लॉक</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>दर्ज विवरण</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
+            <tr><th>ब्लॉक</th><th>कुल सदस्य</th><th>आधार भरे</th><th>एनरोलमेंट भरे</th><th>रिमार्क मात्र</th><th>खाली</th><th>पूर्णता %</th></tr>
           </thead>
           <tbody id="rpt-block"></tbody>
         </table>
@@ -217,6 +219,18 @@
             <tr><th>ब्लॉक</th><th>ग्राम पंचायत</th><th>कुल</th><th>भरे</th><th>खाली</th><th>%</th></tr>
           </thead>
           <tbody id="rpt-gp"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="report-section">
+      <h2>💬 कारण-वार रिपोर्ट</h2>
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr><th>क्र.</th><th>कारण</th><th>कुल</th><th>%</th></tr>
+          </thead>
+          <tbody id="rpt-reason"></tbody>
         </table>
       </div>
     </div>

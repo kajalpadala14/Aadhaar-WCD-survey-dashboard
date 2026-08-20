@@ -723,6 +723,11 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   color: var(--text);
 }
 .report-table tr:nth-child(even) td { background: var(--surface2); }
+.report-table .total-row td {
+  background: var(--surface3) !important;
+  font-weight: 700;
+  border-top: 2px solid var(--border);
+}
 
 .export-bar {
   display: flex;

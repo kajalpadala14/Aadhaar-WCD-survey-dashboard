@@ -312,6 +312,8 @@ function digitsOnly(value) {
   return String(value || '').replace(/\D/g, '');
 }
 
+const ENROLLMENT_REQUIRED_REMARK = 'एनरोलमेंट करवाया गया है, परंतु आधार कार्ड नहीं मिला है';
+
 function createEntryTimestamp() {
   return new Date().toISOString();
 }
@@ -346,6 +348,7 @@ function getEntryKind(record) {
   const remark = String(record.remark || '').trim();
   const isPrefixedEnrollment = /^s\d{27}$/i.test(entryValue);
 
+  if (remark === ENROLLMENT_REQUIRED_REMARK) return 'remark';
   if (aadhaarDigits.length === 12 || entryDigits.length === 12 || entryDigits.length === 4) return 'aadhaar';
   if (enrollmentDigits.length === 28 || entryDigits.length === 28 || isPrefixedEnrollment) return 'enrollment';
   if (entryValue) return 'detail';
@@ -653,7 +656,7 @@ function renderDashboard() {
   document.getElementById('block-table-body').innerHTML = tableHtml;
 
   // Type bars
-  const maxTypeCount = Math.max(1, s.aadhaarFilled, s.enrollmentFilled, s.detailFilled, s.remarkOnly);
+  const maxTypeCount = Math.max(1, s.aadhaarFilled, s.enrollmentFilled, s.remarkOnly);
   document.getElementById('type-bars').innerHTML = `
     <div class="bar-row">
       <div class="bar-label">आधार नंबर</div>
@@ -664,11 +667,6 @@ function renderDashboard() {
       <div class="bar-label">एनरोलमेंट</div>
       <div class="bar-track"><div class="bar-fill" style="width:${Math.max(1, Math.round(s.enrollmentFilled / maxTypeCount * 100))}%;background:#e3b341">${s.enrollmentFilled.toLocaleString()}</div></div>
       <div class="bar-count">${s.enrollmentFilled}</div>
-    </div>
-    <div class="bar-row">
-      <div class="bar-label">दर्ज विवरण</div>
-      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(1, Math.round(s.detailFilled / maxTypeCount * 100))}%;background:#56d364">${s.detailFilled.toLocaleString()}</div></div>
-      <div class="bar-count">${s.detailFilled}</div>
     </div>
     <div class="bar-row">
       <div class="bar-label">रिमार्क मात्र</div>
@@ -877,7 +875,6 @@ function openModal(rowKey) {
 }
 
 // à¤°à¤¿à¤®à¤¾à¤°à¥à¤• à¤•à¥‡ à¤²à¤¿à¤ à¤ªà¤¹à¤²à¥‡ à¤¸à¥‡ à¤¤à¤¯ à¤‰à¤ª-à¤µà¤¿à¤•à¤²à¥à¤ª
-const ENROLLMENT_REQUIRED_REMARK = 'एनरोलमेंट करवाया गया है, परंतु आधार कार्ड नहीं मिला है';
 const REMARK_PRESETS = [
   'जन्म प्रमाण पत्र नहीं बनाया गया',
   'जन्म प्रमाण पत्र ऑफलाइन',
@@ -1039,6 +1036,102 @@ function showToast(msg) {
 }
 
 // REPORT
+function getBlockReportData() {
+  const blocks = ['Dantewada', 'Geedam', 'Katekalyan', 'Kuakonda'];
+  const blockStats = {};
+  blocks.forEach(b => blockStats[b] = { total: 0, aadhaar: 0, enrollment: 0, detail: 0, remarkOnly: 0, empty: 0 });
+  DATA.forEach(r => {
+    if (!blockStats[r.block]) return;
+    blockStats[r.block].total++;
+    const kind = getEntryKind(r);
+    if (kind === 'aadhaar') blockStats[r.block].aadhaar++;
+    else if (kind === 'enrollment') blockStats[r.block].enrollment++;
+    else if (kind === 'detail') blockStats[r.block].detail++;
+    else if (kind === 'remark') blockStats[r.block].remarkOnly++;
+    else blockStats[r.block].empty++;
+  });
+
+  const totals = { total: 0, aadhaar: 0, enrollment: 0, detail: 0, remarkOnly: 0, empty: 0 };
+  const rows = blocks.map(block => {
+    const stats = blockStats[block];
+    Object.keys(totals).forEach(key => totals[key] += stats[key]);
+    const filled = stats.aadhaar + stats.enrollment + stats.detail + stats.remarkOnly;
+    return {
+      block,
+      ...stats,
+      filled,
+      pct: stats.total > 0 ? (filled / stats.total * 100).toFixed(1) : '0.0'
+    };
+  });
+  const totalFilled = totals.aadhaar + totals.enrollment + totals.detail + totals.remarkOnly;
+  return {
+    rows,
+    totals: {
+      ...totals,
+      filled: totalFilled,
+      pct: totals.total > 0 ? (totalFilled / totals.total * 100).toFixed(1) : '0.0'
+    }
+  };
+}
+
+function getGPReportData() {
+  const gpStats = {};
+  DATA.forEach(r => {
+    const key = (r.block || '') + '||' + (r.gp || '');
+    if (!gpStats[key]) gpStats[key] = { block: r.block || '', gp: r.gp || '', total: 0, filled: 0 };
+    gpStats[key].total++;
+    if (hasEntryDetail(r) || r.remark) gpStats[key].filled++;
+  });
+
+  const rows = Object.values(gpStats)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 30)
+    .map(g => ({
+      ...g,
+      empty: g.total - g.filled,
+      pct: g.total > 0 ? (g.filled / g.total * 100).toFixed(0) : '0'
+    }));
+  const totals = rows.reduce((sum, row) => {
+    sum.total += row.total;
+    sum.filled += row.filled;
+    sum.empty += row.empty;
+    return sum;
+  }, { total: 0, filled: 0, empty: 0 });
+  return {
+    rows,
+    totals: {
+      ...totals,
+      pct: totals.total > 0 ? (totals.filled / totals.total * 100).toFixed(0) : '0'
+    }
+  };
+}
+
+function getReasonReportData() {
+  const reasonStats = {};
+  DATA.forEach(r => {
+    const reason = String(r.remark || '').trim();
+    if (!reason) return;
+    if (!reasonStats[reason]) reasonStats[reason] = { reason, total: 0 };
+    reasonStats[reason].total++;
+  });
+
+  const total = Object.values(reasonStats).reduce((sum, row) => sum + row.total, 0);
+  const rows = Object.values(reasonStats)
+    .sort((a, b) => b.total - a.total || a.reason.localeCompare(b.reason, 'hi'))
+    .map(row => ({
+      ...row,
+      pct: total > 0 ? (row.total / total * 100).toFixed(1) : '0.0'
+    }));
+
+  return {
+    rows,
+    totals: {
+      total,
+      pct: total > 0 ? '100.0' : '0.0'
+    }
+  };
+}
+
 function renderReport() {
   document.getElementById('report-date').textContent = new Date().toLocaleDateString('hi-IN');
   const s = getStats();
@@ -1048,44 +1141,35 @@ function renderReport() {
   document.getElementById('rm-pending').textContent = s.pending.toLocaleString();
   document.getElementById('rm-pct').textContent = pct + '%';
 
-  const blocks = ['Dantewada','Geedam','Katekalyan','Kuakonda'];
-  const blockStats = {};
-  blocks.forEach(b => blockStats[b] = {total:0,aadhaar:0,enrollment:0,detail:0,remarkOnly:0,empty:0});
-  DATA.forEach(r => {
-    if(!blockStats[r.block]) return;
-    blockStats[r.block].total++;
-    const kind = getEntryKind(r);
-    if(kind === 'aadhaar') blockStats[r.block].aadhaar++;
-    else if(kind === 'enrollment') blockStats[r.block].enrollment++;
-    else if(kind === 'detail') blockStats[r.block].detail++;
-    else if(kind === 'remark') blockStats[r.block].remarkOnly++;
-    else blockStats[r.block].empty++;
-  });
-
   let bHtml = '';
-  blocks.forEach(b => {
-    const bs = blockStats[b];
-    const filled = bs.aadhaar+bs.enrollment+bs.detail+bs.remarkOnly;
-    const pctB = bs.total>0?(filled/bs.total*100).toFixed(1):0;
-    bHtml += `<tr><td><strong>${b}</strong></td><td>${bs.total.toLocaleString()}</td><td style="color:var(--accent2)">${bs.aadhaar}</td><td style="color:var(--accent4)">${bs.enrollment}</td><td style="color:var(--accent3)">${bs.detail}</td><td style="color:var(--accent3)">${bs.remarkOnly}</td><td style="color:var(--accent)">${bs.empty}</td><td><strong>${pctB}%</strong></td></tr>`;
+  const blockReport = getBlockReportData();
+  blockReport.rows.forEach(bs => {
+    bHtml += `<tr><td><strong>${bs.block}</strong></td><td>${bs.total.toLocaleString()}</td><td style="color:var(--accent2)">${bs.aadhaar.toLocaleString()}</td><td style="color:var(--accent4)">${bs.enrollment.toLocaleString()}</td><td style="color:var(--accent3)">${bs.remarkOnly.toLocaleString()}</td><td style="color:var(--accent)">${bs.empty.toLocaleString()}</td><td><strong>${bs.pct}%</strong></td></tr>`;
   });
-  document.getElementById('rpt-block').innerHTML = bHtml || '<tr><td colspan="8" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
+  const bt = blockReport.totals;
+  bHtml += `<tr class="total-row"><td><strong>कुल</strong></td><td><strong>${bt.total.toLocaleString()}</strong></td><td>${bt.aadhaar.toLocaleString()}</td><td>${bt.enrollment.toLocaleString()}</td><td>${bt.remarkOnly.toLocaleString()}</td><td>${bt.empty.toLocaleString()}</td><td><strong>${bt.pct}%</strong></td></tr>`;
+  document.getElementById('rpt-block').innerHTML = bHtml || '<tr><td colspan="7" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
 
   // GP stats
-  const gpStats = {};
-  DATA.forEach(r => {
-    const key = r.block+'||'+r.gp;
-    if(!gpStats[key]) gpStats[key] = {block:r.block,gp:r.gp,total:0,filled:0};
-    gpStats[key].total++;
-    if(hasEntryDetail(r)||r.remark) gpStats[key].filled++;
-  });
-  const gpArr = Object.values(gpStats).sort((a,b)=>b.total-a.total).slice(0,30);
   let gpHtml = '';
-  gpArr.forEach(g => {
-    const pctG = (g.filled/g.total*100).toFixed(0);
-    gpHtml += `<tr><td style="font-size:12px;color:var(--text2)">${g.block}</td><td>${g.gp}</td><td>${g.total}</td><td style="color:var(--accent3)">${g.filled}</td><td style="color:var(--accent)">${g.total-g.filled}</td><td><strong>${pctG}%</strong></td></tr>`;
+  const gpReport = getGPReportData();
+  gpReport.rows.forEach(g => {
+    gpHtml += `<tr><td style="font-size:12px;color:var(--text2)">${g.block}</td><td>${g.gp}</td><td>${g.total.toLocaleString()}</td><td style="color:var(--accent3)">${g.filled.toLocaleString()}</td><td style="color:var(--accent)">${g.empty.toLocaleString()}</td><td><strong>${g.pct}%</strong></td></tr>`;
   });
+  const gt = gpReport.totals;
+  gpHtml += `<tr class="total-row"><td colspan="2"><strong>कुल (शीर्ष 30)</strong></td><td><strong>${gt.total.toLocaleString()}</strong></td><td>${gt.filled.toLocaleString()}</td><td>${gt.empty.toLocaleString()}</td><td><strong>${gt.pct}%</strong></td></tr>`;
   document.getElementById('rpt-gp').innerHTML = gpHtml || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
+
+  // Reason stats
+  const reasonReport = getReasonReportData();
+  let reasonHtml = '';
+  reasonReport.rows.forEach((r, i) => {
+    reasonHtml += `<tr><td>${i + 1}</td><td>${escapeHtml(r.reason)}</td><td>${r.total.toLocaleString()}</td><td><strong>${r.pct}%</strong></td></tr>`;
+  });
+  if (reasonReport.rows.length) {
+    reasonHtml += `<tr class="total-row"><td colspan="2"><strong>कुल</strong></td><td><strong>${reasonReport.totals.total.toLocaleString()}</strong></td><td><strong>${reasonReport.totals.pct}%</strong></td></tr>`;
+  }
+  document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
 
   // Filled records
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
@@ -1095,10 +1179,11 @@ function renderReport() {
     let fHtml = '';
     filled.forEach((r,i) => {
       const kind = getEntryKind(r);
-      const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'दर्ज विवरण' : 'रिमार्क';
+      const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
       const val = r.aadhaar || r.enrollment || r.entryValue || r.remark;
       fHtml += `<tr><td>${i+1}</td><td style="font-size:12px">${r.block}</td><td style="font-size:12px">${r.village}</td><td><strong>${r.member}</strong><br><span style="font-size:11px;color:var(--text3)">${guardianDisplay(r)}</span></td><td>${type}</td><td style="font-family:monospace;font-size:13px;letter-spacing:1px">${val}</td><td class="time-cell">${escapeHtml(formatEntryTime(r.entryTime))}</td></tr>`;
     });
+    fHtml += `<tr class="total-row"><td colspan="7"><strong>कुल भरे हुए रिकॉर्ड: ${filled.length.toLocaleString()}</strong></td></tr>`;
     document.getElementById('rpt-filled').innerHTML = fHtml;
   }
 }
@@ -1133,44 +1218,21 @@ function reportFileDate() {
 
 function getReportSectionData(section) {
   if (section === 'block') {
-    const blocks = ['Dantewada', 'Geedam', 'Katekalyan', 'Kuakonda'];
-    const blockStats = {};
-    blocks.forEach(b => blockStats[b] = { total: 0, aadhaar: 0, enrollment: 0, detail: 0, remarkOnly: 0, empty: 0 });
-    DATA.forEach(r => {
-      if (!blockStats[r.block]) return;
-      blockStats[r.block].total++;
-      const kind = getEntryKind(r);
-      if (kind === 'aadhaar') blockStats[r.block].aadhaar++;
-      else if (kind === 'enrollment') blockStats[r.block].enrollment++;
-      else if (kind === 'detail') blockStats[r.block].detail++;
-      else if (kind === 'remark') blockStats[r.block].remarkOnly++;
-      else blockStats[r.block].empty++;
-    });
-    const rows = blocks.map(b => {
-      const bs = blockStats[b];
-      const filled = bs.aadhaar + bs.enrollment + bs.detail + bs.remarkOnly;
-      return [b, bs.total, bs.aadhaar, bs.enrollment, bs.detail, bs.remarkOnly, bs.empty, bs.total > 0 ? (filled / bs.total * 100).toFixed(1) + '%' : '0.0%'];
-    });
+    const report = getBlockReportData();
+    const rows = report.rows.map(bs => [bs.block, bs.total, bs.aadhaar, bs.enrollment, bs.remarkOnly, bs.empty, bs.pct + '%']);
+    rows.push(['कुल', report.totals.total, report.totals.aadhaar, report.totals.enrollment, report.totals.remarkOnly, report.totals.empty, report.totals.pct + '%']);
     return {
       title: 'Block-wise summary',
       filename: 'block_wise_summary',
-      headers: ['ब्लॉक', 'कुल सदस्य', 'आधार भरे', 'एनरोलमेंट भरे', 'दर्ज विवरण', 'रिमार्क मात्र', 'खाली', 'पूर्णता %'],
+      headers: ['ब्लॉक', 'कुल सदस्य', 'आधार भरे', 'एनरोलमेंट भरे', 'रिमार्क मात्र', 'खाली', 'पूर्णता %'],
       rows
     };
   }
 
   if (section === 'gp') {
-    const gpStats = {};
-    DATA.forEach(r => {
-      const key = (r.block || '') + '||' + (r.gp || '');
-      if (!gpStats[key]) gpStats[key] = { block: r.block || '', gp: r.gp || '', total: 0, filled: 0 };
-      gpStats[key].total++;
-      if (hasEntryDetail(r) || r.remark) gpStats[key].filled++;
-    });
-    const rows = Object.values(gpStats)
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 30)
-      .map(g => [g.block, g.gp, g.total, g.filled, g.total - g.filled, g.total > 0 ? (g.filled / g.total * 100).toFixed(0) + '%' : '0%']);
+    const report = getGPReportData();
+    const rows = report.rows.map(g => [g.block, g.gp, g.total, g.filled, g.empty, g.pct + '%']);
+    rows.push(['कुल (शीर्ष 30)', '', report.totals.total, report.totals.filled, report.totals.empty, report.totals.pct + '%']);
     return {
       title: 'Gram Panchayat-wise summary (Top 30)',
       filename: 'gp_wise_summary_top_30',
@@ -1179,11 +1241,23 @@ function getReportSectionData(section) {
     };
   }
 
+  if (section === 'reason') {
+    const report = getReasonReportData();
+    const rows = report.rows.map((r, i) => [i + 1, r.reason, r.total, r.pct + '%']);
+    rows.push(['कुल', '', report.totals.total, report.totals.pct + '%']);
+    return {
+      title: 'Reason-wise report',
+      filename: 'reason_wise_report',
+      headers: ['क्र.', 'कारण', 'कुल', '%'],
+      rows
+    };
+  }
+
   if (section === 'filled') {
     const filled = DATA.filter(r => hasEntryDetail(r) || r.remark);
     const rows = filled.map((r, i) => {
       const kind = getEntryKind(r);
-      const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'दर्ज विवरण' : 'रिमार्क';
+      const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
       const value = r.aadhaar || r.enrollment || r.entryValue || r.remark;
       return [
         i + 1,
@@ -1200,6 +1274,7 @@ function getReportSectionData(section) {
         r.age
       ];
     });
+    rows.push(['कुल', '', '', '', '', filled.length, '', '', '', '', '', '']);
     return {
       title: 'Filled records',
       filename: 'filled_records',
