@@ -1075,19 +1075,26 @@ function getBlockReportData() {
 }
 
 function getGPReportData() {
-  const gpStats = {};
+  const gpStats = new Map();
   DATA.forEach(r => {
-    const key = (r.block || '') + '||' + (r.gp || '');
-    if (!gpStats[key]) gpStats[key] = { block: r.block || '', gp: r.gp || '', total: 0, filled: 0 };
-    gpStats[key].total++;
-    if (hasEntryDetail(r) || r.remark) gpStats[key].filled++;
+    const gp = String(r.gp || '').trim();
+    const block = String(r.block || '').trim();
+    const key = gp ? normalizeReportKey(gp) : `__blank__${normalizeReportKey(block)}`;
+    if (!gpStats.has(key)) {
+      gpStats.set(key, { block, blocks: new Set(), gp, total: 0, filled: 0 });
+    }
+    const stats = gpStats.get(key);
+    if (block) stats.blocks.add(block);
+    if (!stats.gp && gp) stats.gp = gp;
+    stats.total++;
+    if (hasEntryDetail(r) || r.remark) stats.filled++;
   });
 
-  const rows = Object.values(gpStats)
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 30)
+  const rows = Array.from(gpStats.values())
     .map(g => ({
       ...g,
+      block: Array.from(g.blocks).join(', ') || g.block,
+      blocks: undefined,
       empty: g.total - g.filled,
       pct: g.total > 0 ? (g.filled / g.total * 100).toFixed(0) : '0'
     }));
@@ -1101,9 +1108,19 @@ function getGPReportData() {
     rows,
     totals: {
       ...totals,
+      gpCount: rows.length,
       pct: totals.total > 0 ? (totals.filled / totals.total * 100).toFixed(0) : '0'
     }
   };
+}
+
+function normalizeReportKey(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\(\s*/g, '(')
+    .replace(/\s*\)\s*/g, ')')
+    .trim()
+    .toLowerCase();
 }
 
 function getReasonReportData() {
@@ -1157,19 +1174,19 @@ function renderReport() {
     gpHtml += `<tr><td style="font-size:12px;color:var(--text2)">${g.block}</td><td>${g.gp}</td><td>${g.total.toLocaleString()}</td><td style="color:var(--accent3)">${g.filled.toLocaleString()}</td><td style="color:var(--accent)">${g.empty.toLocaleString()}</td><td><strong>${g.pct}%</strong></td></tr>`;
   });
   const gt = gpReport.totals;
-  gpHtml += `<tr class="total-row"><td colspan="2"><strong>कुल (शीर्ष 30)</strong></td><td><strong>${gt.total.toLocaleString()}</strong></td><td>${gt.filled.toLocaleString()}</td><td>${gt.empty.toLocaleString()}</td><td><strong>${gt.pct}%</strong></td></tr>`;
+  gpHtml += `<tr class="total-row"><td colspan="2"><strong>कुल ग्राम पंचायत: ${gt.gpCount.toLocaleString()}</strong></td><td><strong>${gt.total.toLocaleString()}</strong></td><td>${gt.filled.toLocaleString()}</td><td>${gt.empty.toLocaleString()}</td><td><strong>${gt.pct}%</strong></td></tr>`;
   document.getElementById('rpt-gp').innerHTML = gpHtml || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
 
   // Reason stats
   const reasonReport = getReasonReportData();
   let reasonHtml = '';
   reasonReport.rows.forEach((r, i) => {
-    reasonHtml += `<tr><td>${i + 1}</td><td>${escapeHtml(r.reason)}</td><td>${r.total.toLocaleString()}</td><td><strong>${r.pct}%</strong></td></tr>`;
+    reasonHtml += `<tr><td>${i + 1}</td><td>${escapeHtml(r.reason)}</td><td>${r.total.toLocaleString()}</td></tr>`;
   });
   if (reasonReport.rows.length) {
-    reasonHtml += `<tr class="total-row"><td colspan="2"><strong>कुल</strong></td><td><strong>${reasonReport.totals.total.toLocaleString()}</strong></td><td><strong>${reasonReport.totals.pct}%</strong></td></tr>`;
+    reasonHtml += `<tr class="total-row"><td colspan="2"><strong>कुल</strong></td><td><strong>${reasonReport.totals.total.toLocaleString()}</strong></td></tr>`;
   }
-  document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
+  document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="3" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
 
   // Filled records
   const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
@@ -1232,10 +1249,10 @@ function getReportSectionData(section) {
   if (section === 'gp') {
     const report = getGPReportData();
     const rows = report.rows.map(g => [g.block, g.gp, g.total, g.filled, g.empty, g.pct + '%']);
-    rows.push(['कुल (शीर्ष 30)', '', report.totals.total, report.totals.filled, report.totals.empty, report.totals.pct + '%']);
+    rows.push([`कुल ग्राम पंचायत: ${report.totals.gpCount}`, '', report.totals.total, report.totals.filled, report.totals.empty, report.totals.pct + '%']);
     return {
-      title: 'Gram Panchayat-wise summary (Top 30)',
-      filename: 'gp_wise_summary_top_30',
+      title: 'Gram Panchayat-wise summary',
+      filename: 'gp_wise_summary',
       headers: ['ब्लॉक', 'ग्राम पंचायत', 'कुल', 'भरे', 'खाली', '%'],
       rows
     };
@@ -1243,12 +1260,12 @@ function getReportSectionData(section) {
 
   if (section === 'reason') {
     const report = getReasonReportData();
-    const rows = report.rows.map((r, i) => [i + 1, r.reason, r.total, r.pct + '%']);
-    rows.push(['कुल', '', report.totals.total, report.totals.pct + '%']);
+    const rows = report.rows.map((r, i) => [i + 1, r.reason, r.total]);
+    rows.push(['कुल', '', report.totals.total]);
     return {
       title: 'Reason-wise report',
       filename: 'reason_wise_report',
-      headers: ['क्र.', 'कारण', 'कुल', '%'],
+      headers: ['क्र.', 'कारण', 'कुल'],
       rows
     };
   }
