@@ -397,11 +397,13 @@ async function fetchFromSheet() {
     if (data && data.ok && Array.isArray(data.entries)) {
       applySyncedEntries(data.entries);
       clearLocalCache();
+      markDataViewsStale();
       renderDashboard();
       applyFilters();
       populateReportFilterOptions();
       reportFilteredData = getReportFilteredData();
       updateReportFilterSummary();
+      markViewStale('report');
       setSyncStatus(`सिंक हो गया (${DATA.length.toLocaleString()} रिकॉर्ड)`, 'ok');
     } else {
       throw new Error(data && data.error ? data.error : 'invalid response');
@@ -413,17 +415,20 @@ async function fetchFromSheet() {
       if (data) {
         applySyncedEntries(data.entries);
         clearLocalCache();
+        markDataViewsStale();
         renderDashboard();
         applyFilters();
         populateReportFilterOptions();
         reportFilteredData = getReportFilteredData();
         updateReportFilterSummary();
+        markViewStale('report');
         setSyncStatus(`सिंक हो गया (${DATA.length.toLocaleString()} रिकॉर्ड)`, 'ok');
         return;
       }
     }
     clearLocalCache();
     resetData();
+    markDataViewsStale();
     renderDashboard();
     populateGPOptions();
     populateVillageOptions();
@@ -431,6 +436,7 @@ async function fetchFromSheet() {
     applyFilters();
     reportFilteredData = getReportFilteredData();
     updateReportFilterSummary();
+    markViewStale('report');
     setSyncStatus(`Backend error: ${e.message || 'sync failed'}`, 'err');
   }
 }
@@ -505,9 +511,24 @@ let currentPage = 1;
 const PAGE_SIZE = 50;
 let editingIdx = null;
 let selectedType = null;
+let activeView = 'dashboard';
+const viewRenderCache = {
+  dashboard: false,
+  entry: false,
+  report: false
+};
+
+function markViewStale(view) {
+  if (viewRenderCache[view] !== undefined) viewRenderCache[view] = false;
+}
+
+function markDataViewsStale() {
+  Object.keys(viewRenderCache).forEach(markViewStale);
+}
 
 // VIEWS
 function switchView(v) {
+  activeView = v;
   document.getElementById('view-dashboard').style.display = v==='dashboard' ? 'block' : 'none';
   document.getElementById('view-entry').style.display = v==='entry' ? 'block' : 'none';
   document.getElementById('view-report').style.display = v==='report' ? 'block' : 'none';
@@ -515,8 +536,15 @@ function switchView(v) {
     const views = ['dashboard','entry','report'];
     t.classList.toggle('active', views[i]===v);
   });
-  if(v==='entry') renderTable();
-  if(v==='report') applyReportFilters();
+  requestAnimationFrame(() => renderViewIfNeeded(v));
+}
+
+function renderViewIfNeeded(v) {
+  if (activeView !== v || viewRenderCache[v]) return;
+  if (v === 'dashboard') renderDashboard();
+  if (v === 'entry') renderTable();
+  if (v === 'report') applyReportFilters();
+  viewRenderCache[v] = true;
 }
 
 // STATS
@@ -689,6 +717,7 @@ function renderDashboard() {
     </div>`;
 
   updateNavProgress();
+  viewRenderCache.dashboard = true;
 }
 
 // ENTRY TABLE
@@ -716,6 +745,7 @@ function applyFilters() {
   });
   currentPage = 1;
   renderTable();
+  viewRenderCache.entry = true;
 }
 
 // à¤¬à¥à¤²à¥‰à¤• à¤«à¤¼à¤¿à¤²à¥à¤Ÿà¤° à¤¬à¤¦à¤²à¤¨à¥‡ à¤ªà¤° à¤—à¥à¤°à¤¾à¤® à¤ªà¤‚à¤šà¤¾à¤¯à¤¤ à¤µ à¤—à¤¾à¤à¤µ à¤•à¥‡ à¤¡à¥à¤°à¥‰à¤ªà¤¡à¤¾à¤‰à¤¨ à¤•à¥‹ à¤«à¤¿à¤° à¤¸à¥‡ à¤­à¤°à¥‡à¤‚
@@ -895,6 +925,7 @@ function renderTable() {
     tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="es-icon">🔍</div><p>कोई रिकॉर्ड नहीं मिला</p></div></td></tr>`;
     document.getElementById('table-info').textContent = '0 रिकॉर्ड';
     document.getElementById('pagination').innerHTML = '';
+    viewRenderCache.entry = true;
     return;
   }
 
@@ -931,6 +962,7 @@ function renderTable() {
 
   document.getElementById('table-info').textContent = `${filteredData.length.toLocaleString()} रिकॉर्ड (पृष्ठ ${currentPage}/${Math.ceil(filteredData.length/PAGE_SIZE)})`;
   renderPagination();
+  viewRenderCache.entry = true;
 }
 
 function renderPagination() {
@@ -1143,6 +1175,7 @@ async function saveEntry() {
   rec.entryTime = createEntryTimestamp();
 
   closeModal();
+  markViewStale('report');
   renderTable();
   renderDashboard();
   const saved = await pushToSheet(rec);
@@ -1150,6 +1183,7 @@ async function saveEntry() {
     showToast('जानकारी सहेजी गई!');
   } else {
     Object.assign(rec, previous);
+    markViewStale('report');
     renderTable();
     renderDashboard();
     showToast('Backend में save नहीं हुआ');
@@ -1334,6 +1368,7 @@ function renderReport() {
     fHtml += `<tr class="total-row"><td colspan="7"><strong>कुल भरे हुए रिकॉर्ड: ${filled.length.toLocaleString()}</strong></td></tr>`;
     document.getElementById('rpt-filled').innerHTML = fHtml;
   }
+  viewRenderCache.report = true;
 }
 
 // EXPORT
