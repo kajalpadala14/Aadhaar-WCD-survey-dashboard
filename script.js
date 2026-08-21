@@ -11,6 +11,7 @@ const RAW_BY_SNO = new Map(RAW_DATA.map(record => [Number(record.sno), record]))
 const THEME_KEY = 'aadhaar_wcd_theme_v2';
 let REASON_REPORT_ROWS = [];
 let currentReasonPreview = null;
+let reportFilteredData = [...DATA];
 const LOCAL_PROXY_PORTS = [
   3010, 3011, 3012, 3013, 3014, 3015, 3016, 3017, 3018, 3019, 3020,
   3000, 3001, 3002, 3003, 3004, 3005, 3006, 3007, 3008, 3009
@@ -398,6 +399,9 @@ async function fetchFromSheet() {
       clearLocalCache();
       renderDashboard();
       applyFilters();
+      populateReportFilterOptions();
+      reportFilteredData = getReportFilteredData();
+      updateReportFilterSummary();
       setSyncStatus(`सिंक हो गया (${DATA.length.toLocaleString()} रिकॉर्ड)`, 'ok');
     } else {
       throw new Error(data && data.error ? data.error : 'invalid response');
@@ -411,6 +415,9 @@ async function fetchFromSheet() {
         clearLocalCache();
         renderDashboard();
         applyFilters();
+        populateReportFilterOptions();
+        reportFilteredData = getReportFilteredData();
+        updateReportFilterSummary();
         setSyncStatus(`सिंक हो गया (${DATA.length.toLocaleString()} रिकॉर्ड)`, 'ok');
         return;
       }
@@ -420,7 +427,10 @@ async function fetchFromSheet() {
     renderDashboard();
     populateGPOptions();
     populateVillageOptions();
+    populateReportFilterOptions();
     applyFilters();
+    reportFilteredData = getReportFilteredData();
+    updateReportFilterSummary();
     setSyncStatus(`Backend error: ${e.message || 'sync failed'}`, 'err');
   }
 }
@@ -481,10 +491,12 @@ async function initApp() {
   renderDashboard();
   populateGPOptions();
   populateVillageOptions();
+  populateReportFilterOptions();
   applyFilters();
   await fetchFromSheet(); // à¤«à¤¿à¤° backend à¤¸à¥‡ à¤¤à¤¾à¤œà¤¼à¤¾/à¤¸à¤¾à¤à¤¾ à¤¡à¥‡à¤Ÿà¤¾ à¤²à¤¾à¤à¤‚
   populateGPOptions();
   populateVillageOptions();
+  populateReportFilterOptions();
 }
 
 // STATE
@@ -504,16 +516,16 @@ function switchView(v) {
     t.classList.toggle('active', views[i]===v);
   });
   if(v==='entry') renderTable();
-  if(v==='report') renderReport();
+  if(v==='report') applyReportFilters();
 }
 
 // STATS
-function getStats() {
-  const total = DATA.length;
-  const aadhaarFilled = DATA.filter(r => getEntryKind(r) === 'aadhaar').length;
-  const enrollmentFilled = DATA.filter(r => getEntryKind(r) === 'enrollment').length;
-  const detailFilled = DATA.filter(r => getEntryKind(r) === 'detail').length;
-  const remarkOnly = DATA.filter(r => getEntryKind(r) === 'remark').length;
+function getStats(records = DATA) {
+  const total = records.length;
+  const aadhaarFilled = records.filter(r => getEntryKind(r) === 'aadhaar').length;
+  const enrollmentFilled = records.filter(r => getEntryKind(r) === 'enrollment').length;
+  const detailFilled = records.filter(r => getEntryKind(r) === 'detail').length;
+  const remarkOnly = records.filter(r => getEntryKind(r) === 'remark').length;
   const anyFilled = aadhaarFilled + enrollmentFilled + detailFilled + remarkOnly;
   const pending = total - anyFilled;
   return {total, aadhaarFilled, enrollmentFilled, detailFilled, remarkOnly, anyFilled, pending};
@@ -758,6 +770,120 @@ function populateVillageOptions() {
     villageList.map(v => `<option value="${v}">${v}</option>`).join('');
 
   if(villageList.includes(currentValue)) villageSelect.value = currentValue;
+}
+
+function getReportFilterElements() {
+  return {
+    block: document.getElementById('report-filter-block'),
+    gp: document.getElementById('report-filter-gp'),
+    village: document.getElementById('report-filter-village'),
+    reason: document.getElementById('report-filter-reason')
+  };
+}
+
+function setSelectOptions(select, placeholder, values, currentValue) {
+  if (!select) return;
+  const list = Array.from(new Set(values.filter(Boolean))).sort((a, b) => a.localeCompare(b, 'hi'));
+  select.innerHTML = `<option value="">${placeholder}</option>` +
+    list.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  if (list.includes(currentValue)) select.value = currentValue;
+}
+
+function populateReportFilterOptions() {
+  const els = getReportFilterElements();
+  if (!els.block || !els.gp || !els.village || !els.reason) return;
+
+  const selectedBlock = els.block.value;
+  const selectedGP = els.gp.value;
+  const selectedVillage = els.village.value;
+  const selectedReason = els.reason.value;
+
+  const gpValues = DATA
+    .filter(r => !selectedBlock || r.block === selectedBlock)
+    .map(r => r.gp);
+  setSelectOptions(els.gp, 'सभी ग्राम पंचायत', gpValues, selectedGP);
+
+  const effectiveGP = els.gp.value;
+  const villageValues = DATA
+    .filter(r => !selectedBlock || r.block === selectedBlock)
+    .filter(r => !effectiveGP || r.gp === effectiveGP)
+    .map(r => r.village);
+  setSelectOptions(els.village, 'सभी गाँव', villageValues, selectedVillage);
+
+  const effectiveVillage = els.village.value;
+  const reasonValues = DATA
+    .filter(r => !selectedBlock || r.block === selectedBlock)
+    .filter(r => !effectiveGP || r.gp === effectiveGP)
+    .filter(r => !effectiveVillage || r.village === effectiveVillage)
+    .map(r => String(r.remark || '').trim());
+  setSelectOptions(els.reason, 'सभी Issue / Reason', reasonValues, selectedReason);
+}
+
+function getReportFilteredData() {
+  const els = getReportFilterElements();
+  if (!els.block) return [...DATA];
+  const block = els.block.value;
+  const gp = els.gp.value;
+  const village = els.village.value;
+  const reason = els.reason.value;
+
+  return DATA.filter(r => {
+    if (block && r.block !== block) return false;
+    if (gp && r.gp !== gp) return false;
+    if (village && r.village !== village) return false;
+    if (reason && String(r.remark || '').trim() !== reason) return false;
+    return true;
+  });
+}
+
+function updateReportFilterSummary() {
+  const el = document.getElementById('report-filter-summary');
+  if (!el) return;
+  const total = DATA.length;
+  const shown = reportFilteredData.length;
+  const parts = [];
+  const els = getReportFilterElements();
+  if (els.block && els.block.value) parts.push(`Block: ${els.block.value}`);
+  if (els.gp && els.gp.value) parts.push(`GP: ${els.gp.value}`);
+  if (els.village && els.village.value) parts.push(`Village: ${els.village.value}`);
+  if (els.reason && els.reason.value) parts.push(`Issue: ${els.reason.value}`);
+  el.textContent = `${shown.toLocaleString()} / ${total.toLocaleString()} रिकॉर्ड` + (parts.length ? ` | ${parts.join(' | ')}` : ' | सभी रिकॉर्ड');
+}
+
+function applyReportFilters() {
+  populateReportFilterOptions();
+  reportFilteredData = getReportFilteredData();
+  updateReportFilterSummary();
+  renderReport();
+}
+
+function onReportBlockFilterChange() {
+  const els = getReportFilterElements();
+  if (els.gp) els.gp.value = '';
+  if (els.village) els.village.value = '';
+  if (els.reason) els.reason.value = '';
+  applyReportFilters();
+}
+
+function onReportGPFilterChange() {
+  const els = getReportFilterElements();
+  if (els.village) els.village.value = '';
+  if (els.reason) els.reason.value = '';
+  applyReportFilters();
+}
+
+function resetReportFilters() {
+  const els = getReportFilterElements();
+  Object.values(els).forEach(el => {
+    if (el) el.value = '';
+  });
+  populateReportFilterOptions();
+  Object.values(els).forEach(el => {
+    if (el) el.value = '';
+  });
+  reportFilteredData = [...DATA];
+  updateReportFilterSummary();
+  renderReport();
 }
 
 function renderTable() {
@@ -1038,11 +1164,11 @@ function showToast(msg) {
 }
 
 // REPORT
-function getBlockReportData() {
+function getBlockReportData(records = DATA) {
   const blocks = ['Dantewada', 'Geedam', 'Katekalyan', 'Kuakonda'];
   const blockStats = {};
   blocks.forEach(b => blockStats[b] = { total: 0, aadhaar: 0, enrollment: 0, detail: 0, remarkOnly: 0, empty: 0 });
-  DATA.forEach(r => {
+  records.forEach(r => {
     if (!blockStats[r.block]) return;
     blockStats[r.block].total++;
     const kind = getEntryKind(r);
@@ -1076,9 +1202,9 @@ function getBlockReportData() {
   };
 }
 
-function getGPReportData() {
+function getGPReportData(records = DATA) {
   const gpStats = new Map();
-  DATA.forEach(r => {
+  records.forEach(r => {
     const gp = String(r.gp || '').trim();
     const block = String(r.block || '').trim();
     const key = gp ? normalizeReportKey(gp) : `__blank__${normalizeReportKey(block)}`;
@@ -1125,9 +1251,9 @@ function normalizeReportKey(value) {
     .toLowerCase();
 }
 
-function getReasonReportData() {
+function getReasonReportData(records = DATA) {
   const reasonStats = {};
-  DATA.forEach(r => {
+  records.forEach(r => {
     const reason = String(r.remark || '').trim();
     if (!reason) return;
     if (!reasonStats[reason]) reasonStats[reason] = { reason, total: 0 };
@@ -1153,7 +1279,9 @@ function getReasonReportData() {
 
 function renderReport() {
   document.getElementById('report-date').textContent = new Date().toLocaleDateString('hi-IN');
-  const s = getStats();
+  reportFilteredData = getReportFilteredData();
+  updateReportFilterSummary();
+  const s = getStats(reportFilteredData);
   const pct = s.total > 0 ? (s.anyFilled/s.total*100).toFixed(1) : '0.0';
   document.getElementById('rm-total').textContent = s.total.toLocaleString();
   document.getElementById('rm-filled').textContent = s.anyFilled.toLocaleString();
@@ -1161,7 +1289,7 @@ function renderReport() {
   document.getElementById('rm-pct').textContent = pct + '%';
 
   let bHtml = '';
-  const blockReport = getBlockReportData();
+  const blockReport = getBlockReportData(reportFilteredData);
   blockReport.rows.forEach(bs => {
     bHtml += `<tr><td><strong>${bs.block}</strong></td><td>${bs.total.toLocaleString()}</td><td style="color:var(--accent2)">${bs.aadhaar.toLocaleString()}</td><td style="color:var(--accent4)">${bs.enrollment.toLocaleString()}</td><td style="color:var(--accent3)">${bs.remarkOnly.toLocaleString()}</td><td style="color:var(--accent)">${bs.empty.toLocaleString()}</td><td><strong>${bs.pct}%</strong></td></tr>`;
   });
@@ -1171,7 +1299,7 @@ function renderReport() {
 
   // GP stats
   let gpHtml = '';
-  const gpReport = getGPReportData();
+  const gpReport = getGPReportData(reportFilteredData);
   gpReport.rows.forEach(g => {
     gpHtml += `<tr><td style="font-size:12px;color:var(--text2)">${g.block}</td><td>${g.gp}</td><td>${g.total.toLocaleString()}</td><td style="color:var(--accent3)">${g.filled.toLocaleString()}</td><td style="color:var(--accent)">${g.empty.toLocaleString()}</td><td><strong>${g.pct}%</strong></td></tr>`;
   });
@@ -1180,7 +1308,7 @@ function renderReport() {
   document.getElementById('rpt-gp').innerHTML = gpHtml || '<tr><td colspan="6" style="text-align:center;color:var(--text3)">कोई डेटा नहीं</td></tr>';
 
   // Reason stats
-  const reasonReport = getReasonReportData();
+  const reasonReport = getReasonReportData(reportFilteredData);
   REASON_REPORT_ROWS = reasonReport.rows;
   let reasonHtml = '';
   reasonReport.rows.forEach((r, i) => {
@@ -1192,7 +1320,7 @@ function renderReport() {
   document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
 
   // Filled records
-  const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
+  const filled = reportFilteredData.filter(r => hasEntryDetail(r)||r.remark);
   if(filled.length===0) {
     document.getElementById('rpt-filled').innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>अभी कोई रिकॉर्ड भरा नहीं गया है।<br>डेटा एंट्री टैब पर जाएं और शुरू करें।</p></div></td></tr>';
   } else {
@@ -1210,15 +1338,15 @@ function renderReport() {
 
 // EXPORT
 function exportCSV() {
-  const filled = DATA.filter(r => hasEntryDetail(r)||r.remark);
-  if(!filled.length) { showToast('कोई भरा हुआ रिकॉर्ड नहीं!'); return; }
-  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Husband Name','Head of Family','Member','Mobile','Gender','Age','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Remark','Entry Time'];
-  const rows = filled.map(r => [r.sno,r.district,r.block,r.gp,r.village,r.fatherName,r.hof,r.member,r.mobile,r.gender,r.age,r.aadhaar,r.enrollment,r.entryValue,r.remark,formatEntryTime(r.entryTime)]);
+  const records = getReportFilteredData();
+  if(!records.length) { showToast('फिल्टर में कोई रिकॉर्ड नहीं!'); return; }
+  const headers = ['S.No.','District','Block','Gram Panchayat','Village','Father/Husband Name','Head of Family','Member','Mobile','Gender','Age','Status','Aadhaar (12 digit)','Enrollment (28 digit)','Entry Detail','Issue / Remark','Entry Time'];
+  const rows = records.map(r => [r.sno,r.district,r.block,r.gp,r.village,r.fatherName,r.hof,r.member,r.mobile,r.gender,r.age,getEntryKind(r),r.aadhaar,r.enrollment,r.entryValue,r.remark,formatEntryTime(r.entryTime)]);
   const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'aadhaar_dantewada_report.csv';
+  a.href = url; a.download = `aadhaar_dantewada_filtered_${reportFileDate()}.csv`;
   a.click(); URL.revokeObjectURL(url);
   showToast('CSV डाउनलोड हो रही है!');
 }
@@ -1237,8 +1365,9 @@ function reportFileDate() {
 }
 
 function getReportSectionData(section) {
+  const source = getReportFilteredData();
   if (section === 'block') {
-    const report = getBlockReportData();
+    const report = getBlockReportData(source);
     const rows = report.rows.map(bs => [bs.block, bs.total, bs.aadhaar, bs.enrollment, bs.remarkOnly, bs.empty, bs.pct + '%']);
     rows.push(['कुल', report.totals.total, report.totals.aadhaar, report.totals.enrollment, report.totals.remarkOnly, report.totals.empty, report.totals.pct + '%']);
     return {
@@ -1250,7 +1379,7 @@ function getReportSectionData(section) {
   }
 
   if (section === 'gp') {
-    const report = getGPReportData();
+    const report = getGPReportData(source);
     const rows = report.rows.map(g => [g.block, g.gp, g.total, g.filled, g.empty, g.pct + '%']);
     rows.push([`कुल ग्राम पंचायत: ${report.totals.gpCount}`, '', report.totals.total, report.totals.filled, report.totals.empty, report.totals.pct + '%']);
     return {
@@ -1262,7 +1391,7 @@ function getReportSectionData(section) {
   }
 
   if (section === 'reason') {
-    const report = getReasonReportData();
+    const report = getReasonReportData(source);
     const rows = report.rows.map((r, i) => [i + 1, r.reason, r.total]);
     rows.push(['कुल', '', report.totals.total]);
     return {
@@ -1274,7 +1403,7 @@ function getReportSectionData(section) {
   }
 
   if (section === 'filled') {
-    const filled = DATA.filter(r => hasEntryDetail(r) || r.remark);
+    const filled = source.filter(r => hasEntryDetail(r) || r.remark);
     const rows = filled.map((r, i) => {
       const kind = getEntryKind(r);
       const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
@@ -1306,6 +1435,40 @@ function getReportSectionData(section) {
   return null;
 }
 
+function getFilteredReportData() {
+  const source = getReportFilteredData();
+  const rows = source.map((r, i) => {
+    const kind = getEntryKind(r);
+    const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : kind === 'remark' ? 'रिमार्क / Issue' : 'खाली';
+    return [
+      i + 1,
+      r.sno,
+      r.district,
+      r.block,
+      r.gp,
+      r.village,
+      guardianDisplay(r),
+      r.member,
+      r.mobile,
+      r.gender === 'Male' ? 'पुरुष' : 'महिला',
+      r.age,
+      type,
+      r.aadhaar,
+      r.enrollment,
+      r.entryValue,
+      r.remark,
+      formatEntryTime(r.entryTime)
+    ];
+  });
+  rows.push(['कुल', source.length, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '']);
+  return {
+    title: 'Filtered Aadhaar WCD records',
+    filename: 'filtered_aadhaar_records',
+    headers: ['क्र.', 'S.No.', 'District', 'ब्लॉक', 'ग्राम पंचायत', 'गाँव', 'पिता/पति/मुखिया', 'सदस्य', 'मोबाइल', 'लिंग', 'आयु', 'स्थिति', 'आधार', 'एनरोलमेंट', 'Entry Detail', 'Issue / Remark', 'समय'],
+    rows
+  };
+}
+
 function buildExportTableHtml(report) {
   const head = report.headers.map(h => `<th>${escapeHtml(h)}</th>`).join('');
   const body = report.rows.map(row => `<tr>${row.map(cell => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('');
@@ -1314,7 +1477,7 @@ function buildExportTableHtml(report) {
 
 function getReasonDetailRows(reason) {
   const selectedReason = String(reason || '').trim();
-  return DATA
+  return getReportFilteredData()
     .filter(r => String(r.remark || '').trim() === selectedReason)
     .sort((a, b) => {
       const blockCompare = String(a.block || '').localeCompare(String(b.block || ''), 'hi');
@@ -1434,6 +1597,15 @@ function downloadCurrentReasonExcel() {
     return;
   }
   downloadExcelReport(getReasonDetailReportData(currentReasonPreview.reason));
+}
+
+function downloadFilteredReportExcel() {
+  const report = getFilteredReportData();
+  if (!report.rows.length || getReportFilteredData().length === 0) {
+    showToast('फिल्टर में कोई रिकॉर्ड नहीं!');
+    return;
+  }
+  downloadExcelReport(report);
 }
 
 function downloadSectionExcel(section) {

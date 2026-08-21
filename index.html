@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aadhaar WCD survey</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20260818-responsive-nav">
+<link rel="stylesheet" href="styles.css?v=20260821-report-filters">
 </head>
 <body class="light-mode">
 
@@ -187,6 +187,7 @@
     </div>
 
     <div class="export-bar">
+      <button class="btn-export" onclick="downloadFilteredReportExcel()">⬇️ Filtered Excel</button>
       <button class="btn-export" onclick="downloadSectionExcel('block')">📍 Block Excel</button>
       <button class="btn-export" onclick="downloadSectionPDF('block')">📄 Block PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('gp')">🏘️ GP Excel</button>
@@ -195,7 +196,7 @@
       <button class="btn-export" onclick="downloadSectionPDF('reason')">📄 Reason PDF</button>
       <button class="btn-export" onclick="downloadSectionExcel('filled')">✅ Filled Excel</button>
       <button class="btn-export" onclick="downloadSectionPDF('filled')">📄 Filled PDF</button>
-      <button class="btn-export" onclick="exportCSV()">⬇️ All CSV</button>
+      <button class="btn-export" onclick="exportCSV()">⬇️ Filtered CSV</button>
       <button class="btn-export" onclick="window.print()">🖨️ Full Print</button>
     </div>
 
@@ -208,6 +209,34 @@
           </thead>
           <tbody id="rpt-block"></tbody>
         </table>
+      </div>
+    </div>
+
+    <div class="report-filter-panel">
+      <div class="report-filter-head">
+        <div>
+          <h2>🔎 रिपोर्ट फिल्टर</h2>
+          <p id="report-filter-summary">सभी रिकॉर्ड दिख रहे हैं</p>
+        </div>
+        <button class="btn-export" type="button" onclick="resetReportFilters()">रीसेट</button>
+      </div>
+      <div class="report-filter-grid">
+        <select id="report-filter-block" onchange="onReportBlockFilterChange()">
+          <option value="">सभी ब्लॉक</option>
+          <option>Dantewada</option>
+          <option>Geedam</option>
+          <option>Katekalyan</option>
+          <option>Kuakonda</option>
+        </select>
+        <select id="report-filter-gp" onchange="onReportGPFilterChange()">
+          <option value="">सभी ग्राम पंचायत</option>
+        </select>
+        <select id="report-filter-village" onchange="applyReportFilters()">
+          <option value="">सभी गाँव</option>
+        </select>
+        <select id="report-filter-reason" onchange="applyReportFilters()">
+          <option value="">सभी Issue / Reason</option>
+        </select>
       </div>
     </div>
 
@@ -447,6 +476,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js?v=20260817-live-server-api"></script>
-<script src="script.js?v=20260820-reason-preview-excel"></script>
+<script src="script.js?v=20260821-report-filters"></script>
 </body>
 </html>

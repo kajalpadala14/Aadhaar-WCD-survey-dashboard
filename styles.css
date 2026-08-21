@@ -735,6 +735,65 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
+.report-filter-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 18px;
+  padding: 16px;
+}
+.report-filter-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.report-filter-head h2 {
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.report-filter-head p {
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+.report-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.report-filter-grid select,
+.report-filter-grid input {
+  width: 100%;
+  min-height: 40px;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  padding: 8px 10px;
+}
+.report-filter-grid select:focus,
+.report-filter-grid input:focus {
+  border-color: var(--accent2);
+}
+.report-filter-grid label {
+  color: var(--text2);
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
 .btn-export {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1198,6 +1257,18 @@ textarea.form-input { letter-spacing: 0; font-size: 14px; resize: vertical; min-
 
   .export-bar {
     display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .report-filter-head {
+    flex-direction: column;
+  }
+
+  .report-filter-head .btn-export {
+    width: 100%;
+  }
+
+  .report-filter-grid {
     grid-template-columns: 1fr;
   }
 
