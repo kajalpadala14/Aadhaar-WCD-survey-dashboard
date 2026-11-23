@@ -96,9 +96,9 @@ function listEntries() {
       maritalStatus: text(valueAt(row, headerMap.maritalStatus)),
       hof: text(valueAt(row, headerMap.hof)),
       fatherName: text(valueAt(row, headerMap.fatherName)) || text(valueAt(row, headerMap.hof)),
-      aadhaar: onlyDigits(entryValue).length === 12 ? onlyDigits(entryValue) : '',
+      aadhaar: onlyDigits(entryValue).length === 12 ? ('00000000' + onlyDigits(entryValue).slice(-4)) : (onlyDigits(entryValue).length === 4 ? ('00000000' + onlyDigits(entryValue)) : ''),
       enrollment: onlyDigits(entryValue).length === 28 ? onlyDigits(entryValue) : '',
-      remark: text(valueAt(row, headerMap.remark)),
+      remark: onlyDigits(entryValue).length === 28 ? '' : text(valueAt(row, headerMap.remark)),
       entryValue,
       entryTime: text(valueAt(row, headerMap.entryTime))
     };
@@ -118,7 +118,8 @@ function saveEntry(payload) {
     ? sheet.getRange(targetRow, 1, 1, sheet.getLastColumn()).getValues()[0]
     : [];
 
-  const aadhaar = onlyDigits(payload.aadhaar);
+  const rawAadhaar = onlyDigits(payload.aadhaar);
+  const aadhaar = rawAadhaar.length >= 4 ? ('00000000' + rawAadhaar.slice(-4)) : '';
   const enrollment = onlyDigits(payload.enrollment);
   const entryValue = aadhaar || enrollment || text(payload.entryValue);
   const entryTime = getPayloadEntryTime(payload);
@@ -137,8 +138,9 @@ function saveEntry(payload) {
   }
   setCell(current, headerMap.hof, payload.hof);
   setCell(current, headerMap.fatherName, payload.fatherName);
+  const finalRemark = (aadhaar || enrollment) ? '' : text(payload.remark);
   setCell(current, headerMap.entryValue, entryValue);
-  setCell(current, headerMap.remark, payload.remark);
+  setCell(current, headerMap.remark, finalRemark);
   setCell(current, headerMap.entryTime, entryTime);
 
   sheet.getRange(targetRow, 1, 1, headers.length).setValues([current.slice(0, headers.length)]);
@@ -150,7 +152,7 @@ function saveEntry(payload) {
     member: text(payload.member),
     aadhaar,
     enrollment,
-    remark: text(payload.remark),
+    remark: finalRemark,
     entryTime
   };
 }

@@ -316,17 +316,17 @@
       <div id="input-aadhaar" style="display:none">
         <div class="form-group">
           <label class="form-label">आधार कार्ड नंबर <span class="required">*</span></label>
-          <input type="tel" class="form-input" id="inp-aadhaar" maxlength="12" placeholder="XXXX XXXX XXXX" oninput="validateAadhaar()">
-          <div class="form-hint">केवल 12 अंक दर्ज करें (बिना स्पेस)</div>
-          <div class="char-count" id="cc-aadhaar"><span class="char-no">0/12</span></div>
+          <input type="tel" class="form-input" id="inp-aadhaar" maxlength="12" placeholder="00000000XXXX" oninput="validateAadhaar()">
+          <div class="form-hint">केवल 12 अंक (शुरू के 8 अंक 00000000, अंतिम 4 अंक दर्ज करें)</div>
+          <div class="char-count" id="cc-aadhaar"><span class="char-no">8/12</span></div>
         </div>
       </div>
 
       <div id="input-enrollment" style="display:none">
         <div class="form-group">
-          <label class="form-label">एनरोलमेंट नंबर <span class="required">*</span></label>
+          <label class="form-label">एनरोलमेंट नंबर <span class="required">*</span><span id="enrollment-view-badge" class="view-only-badge" style="display:none">🔒 केवल देखने के लिए (View Only)</span></label>
           <input type="tel" class="form-input" id="inp-enrollment" maxlength="28" placeholder="XXXX/XXXXX/XXXXXXXX" oninput="validateEnrollment()">
-          <div class="form-hint">28 अंक दर्ज करें (उदा: 1234/56789/12345678)</div>
+          <div class="form-hint" id="hint-enrollment">28 अंक दर्ज करें (उदा: 1234/56789/12345678)</div>
           <div class="char-count" id="cc-enrollment"><span class="char-no">0/28</span></div>
         </div>
       </div>
@@ -415,8 +415,9 @@
       </div>
       <div class="form-group">
         <label class="form-label">आधार कार्ड नंबर</label>
-        <input type="tel" class="form-input" id="add-aadhaar" maxlength="12" placeholder="12 अंक">
-        <div class="char-count" id="cc-add-aadhaar"><span class="char-no">0/12</span></div>
+        <input type="tel" class="form-input" id="add-aadhaar" maxlength="12" placeholder="00000000XXXX">
+        <div class="form-hint">केवल 12 अंक (शुरू के 8 अंक 00000000, अंतिम 4 अंक दर्ज करें)</div>
+        <div class="char-count" id="cc-add-aadhaar"><span class="char-no">8/12</span></div>
       </div>
       <div class="form-group">
         <label class="form-label">एनरोलमेंट नंबर</label>
