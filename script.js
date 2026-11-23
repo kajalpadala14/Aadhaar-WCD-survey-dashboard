@@ -304,7 +304,10 @@ function applySyncedEntries(entries) {
       return entry;
     })
     .filter(entry => !entry.deleted && (entry.project || entry.member || entry.hof || entry.block || entry.gp || entry.village));
-  filteredData = [...DATA];
+  filteredData = DATA.filter(r => {
+    const k = getEntryKind(r);
+    return k === 'enrollment' || k === 'empty';
+  });
 }
 
 function hasEntryDetail(record) {
@@ -506,7 +509,10 @@ async function initApp() {
 }
 
 // STATE
-let filteredData = [...DATA];
+let filteredData = DATA.filter(r => {
+  const k = getEntryKind(r);
+  return k === 'enrollment' || k === 'empty';
+});
 let currentPage = 1;
 const PAGE_SIZE = 50;
 let editingIdx = null;
@@ -735,8 +741,13 @@ function applyFilters() {
     if(village && r.village !== village) return false;
     if(gender && r.gender !== gender) return false;
     const entryKind = getEntryKind(r);
-    if(status === 'filled' && entryKind === 'empty') return false;
+
+    // केवल 'enrollment' और 'empty' (खाली) वाले रिकॉर्ड ही डेटा एंट्री में दिखने चाहिए, बाकी (आधार, रिमार्क, आदि) नहीं
+    if(entryKind !== 'enrollment' && entryKind !== 'empty') return false;
+
     if(status === 'empty' && entryKind !== 'empty') return false;
+    if(status === 'enrollment' && entryKind !== 'enrollment') return false;
+
     if(search) {
       const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile}`.toLowerCase();
       if(!hay.includes(search)) return false;
@@ -1176,7 +1187,7 @@ async function saveEntry() {
 
   closeModal();
   markViewStale('report');
-  renderTable();
+  applyFilters();
   renderDashboard();
   const saved = await pushToSheet(rec);
   if (saved) {
@@ -1184,7 +1195,7 @@ async function saveEntry() {
   } else {
     Object.assign(rec, previous);
     markViewStale('report');
-    renderTable();
+    applyFilters();
     renderDashboard();
     showToast('Backend में save नहीं हुआ');
   }
