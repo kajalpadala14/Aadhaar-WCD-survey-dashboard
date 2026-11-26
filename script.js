@@ -267,7 +267,7 @@ function normalizeSheetRecord(e, index) {
     enrollment: (digitsOnly(e.enrollment).length === 28 ? (e.enrollment || '').toString().trim() : (digitsOnly(e.entryValue).length === 28 ? digitsOnly(e.entryValue) : '')),
     remark: (digitsOnly(e.enrollment).length === 28 || digitsOnly(e.entryValue).length === 28) ? '' : (e.remark || '').toString().trim(),
     entryValue: (e.entryValue || base.entryValue || '').toString().trim(),
-    entryTime: normalizeEntryTime(e.entryTime || e.entry_time || e.savedAt || e.saved_at || e.time || e.Time || e.timestamp || e.Timestamp || e['समय'] || e['टाइम'] || base.entryTime || ''),
+    entryTime: normalizeEntryTime(e.entryTime || e.entry_time || e.savedAt || e.saved_at || e.time || e.Time || e.timestamp || e.Timestamp || e['समय'] || e['टाइम'] || e['दिनांक'] || e['तारीख'] || e.date || e.Date || base.entryTime || ''),
     deleted: e.deleted === true || e.deleted === 'TRUE'
   };
 }
@@ -352,6 +352,15 @@ function createEntryTimestamp() {
 
 function normalizeEntryTime(value) {
   return String(value || '').trim();
+}
+
+function formatEidPretty(eid) {
+  if (!eid) return '';
+  const digits = digitsOnly(eid);
+  if (digits.length === 28) {
+    return `${digits.slice(0, 4)}/${digits.slice(4, 9)}/${digits.slice(9, 14)}`;
+  }
+  return String(eid);
 }
 
 function formatEntryTime(value) {
@@ -759,6 +768,7 @@ function applyFilters() {
   const village = document.getElementById('filter-village').value;
   const status = document.getElementById('filter-status').value;
   const gender = document.getElementById('filter-gender').value;
+  const sort = document.getElementById('filter-sort') ? document.getElementById('filter-sort').value : 'sno';
 
   filteredData = DATA.filter(r => {
     if(block && r.block !== block) return false;
@@ -766,19 +776,39 @@ function applyFilters() {
     if(village && r.village !== village) return false;
     if(gender && r.gender !== gender) return false;
     const entryKind = getEntryKind(r);
+    const isNov2026 = Boolean(r.entryTime && r.entryTime.includes('2026-11'));
 
-    // केवल 'enrollment' और 'empty' (खाली) वाले रिकॉर्ड ही डेटा एंट्री में दिखने चाहिए, बाकी (आधार, रिमार्क, आदि) नहीं
-    if(entryKind !== 'enrollment' && entryKind !== 'empty') return false;
-
-    if(status === 'empty' && entryKind !== 'empty') return false;
-    if(status === 'enrollment' && entryKind !== 'enrollment') return false;
+    if (status === 'recent') {
+      if (!isNov2026) return false;
+    } else if (status === 'empty') {
+      if (entryKind !== 'empty') return false;
+    } else if (status === 'enrollment') {
+      if (entryKind !== 'enrollment') return false;
+    } else if (status === 'all') {
+      // allow all records
+    } else {
+      // Default: 'enrollment' और 'empty' (खाली) वाले रिकॉर्ड, साथ ही हाल ही में नवंबर 2026 में दर्ज सभी रिकॉर्ड्स दिखें
+      if (entryKind !== 'enrollment' && entryKind !== 'empty' && !isNov2026) return false;
+    }
 
     if(search) {
-      const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile}`.toLowerCase();
+      const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile} ${r.enrollment || ''} ${r.aadhaar || ''} ${r.entryValue || ''}`.toLowerCase();
       if(!hay.includes(search)) return false;
     }
     return true;
   });
+
+  if (sort === 'recent') {
+    filteredData.sort((a, b) => {
+      const timeA = a.entryTime ? new Date(a.entryTime).getTime() : 0;
+      const timeB = b.entryTime ? new Date(b.entryTime).getTime() : 0;
+      if (timeB !== timeA) return timeB - timeA;
+      return (Number(a.sno) || 0) - (Number(b.sno) || 0);
+    });
+  } else {
+    filteredData.sort((a, b) => (Number(a.sno) || 0) - (Number(b.sno) || 0));
+  }
+
   currentPage = 1;
   renderTable();
   viewRenderCache.entry = true;
@@ -969,11 +999,18 @@ function renderTable() {
   pageData.forEach(r => {
     const entryKind = getEntryKind(r);
     let statusHtml;
+    const eidPretty = formatEidPretty(r.enrollment || (digitsOnly(r.entryValue).length === 28 ? r.entryValue : ''));
     if(entryKind === 'aadhaar') statusHtml = `<span class="status-dot dot-filled"></span><span style="color:var(--accent3);font-size:12px">आधार ✓</span>`;
-    else if(entryKind === 'enrollment') statusHtml = `<span class="status-dot" style="background:var(--accent4)"></span><span style="color:var(--accent4);font-size:12px">एनरोलमेंट ✓</span>`;
+    else if(entryKind === 'enrollment') statusHtml = `<span class="status-dot" style="background:var(--accent4)"></span><span style="color:var(--accent4);font-size:12px;font-weight:600">एनरोलमेंट ✓</span>${eidPretty ? `<div class="eid-sub" title="${escapeHtml(r.enrollment || r.entryValue)}">${escapeHtml(eidPretty)}</div>` : ''}`;
     else if(entryKind === 'detail') statusHtml = `<span class="status-dot" style="background:var(--accent3)"></span><span style="color:var(--accent3);font-size:12px">दर्ज विवरण ✓</span>`;
     else if(entryKind === 'remark') statusHtml = `<span class="status-dot" style="background:var(--accent2)"></span><span style="color:var(--accent2);font-size:12px">रिमार्क ✓</span>`;
     else statusHtml = `<span class="status-dot dot-empty"></span><span style="color:var(--text3);font-size:12px">खाली</span>`;
+
+    const isNov2026 = Boolean(r.entryTime && r.entryTime.includes('2026-11'));
+    const formattedTime = formatEntryTime(r.entryTime);
+    const timeHtml = isNov2026
+      ? `<span class="time-recent-badge">नवंबर 2026</span><br><span class="time-text">${escapeHtml(formattedTime)}</span>`
+      : `<span class="time-text">${escapeHtml(formattedTime)}</span>`;
 
     const validMobile = /^\d{10}$/.test(r.mobile || '');
     const callCellHtml = validMobile
@@ -989,7 +1026,7 @@ function renderTable() {
       <td><strong>${r.member}</strong></td>
       <td style="font-size:12px;color:var(--text2)">${r.gender==='Male'?'पुरुष':'महिला'} / ${r.age|0} वर्ष</td>
       <td>${statusHtml}</td>
-      <td class="time-cell">${escapeHtml(formatEntryTime(r.entryTime))}</td>
+      <td class="time-cell">${timeHtml}</td>
       <td>${callCellHtml}</td>
       <td><button class="edit-btn" onclick="openModal('${r._uiKey || String(r.sno)}')">संपादित</button></td>
     </tr>`;
@@ -1042,6 +1079,7 @@ function openModal(rowKey) {
   const guardianInfoHtml = guardianParts(rec)
     .map(part => `<div class="info-item"><div class="info-key">${escapeHtml(part.label)}</div><div class="info-val">${escapeHtml(part.name)}</div></div>`)
     .join('');
+  const formattedEntryDate = formatEntryTime(rec.entryTime);
   document.getElementById('modal-info').innerHTML = `
     <div class="info-item"><div class="info-key">ब्लॉक</div><div class="info-val">${rec.block}</div></div>
     <div class="info-item"><div class="info-key">ग्राम पंचायत</div><div class="info-val">${rec.gp}</div></div>
@@ -1049,7 +1087,8 @@ function openModal(rowKey) {
     ${guardianInfoHtml}
     <div class="info-item"><div class="info-key">मोबाइल</div><div class="info-val">${rec.mobile||'-'}${/^\d{10}$/.test(rec.mobile||'') ? `<a class="modal-call-btn" href="tel:${rec.mobile}">📞 कॉल करें</a>` : ''}</div></div>
     <div class="info-item"><div class="info-key">लिंग</div><div class="info-val">${rec.gender==='Male'?'पुरुष':'महिला'}</div></div>
-    <div class="info-item"><div class="info-key">आयु</div><div class="info-val">${rec.age|0} वर्ष</div></div>`;
+    <div class="info-item"><div class="info-key">आयु</div><div class="info-val">${rec.age|0} वर्ष</div></div>
+    <div class="info-item"><div class="info-key">दर्ज समय (Sheet Time)</div><div class="info-val" style="color:var(--accent4)">${escapeHtml(formattedEntryDate)}</div></div>`;
 
   const hasEnrollment = Boolean((rec.enrollment && digitsOnly(rec.enrollment).length === 28) || digitsOnly(rec.entryValue).length === 28);
   if (hasEnrollment) {
@@ -1067,6 +1106,7 @@ function openModal(rowKey) {
   const enrBadge = document.getElementById('enrollment-view-badge');
   const enrHint = document.getElementById('hint-enrollment');
   const optRemark = document.getElementById('opt-remark');
+  const dateCard = document.getElementById('enrollment-date-card');
 
   inpEnr.value = rec.enrollment || '';
   document.getElementById('inp-remark').value = rec.remark || '';
@@ -1078,12 +1118,24 @@ function openModal(rowKey) {
     if (enrBadge) enrBadge.style.display = 'inline-flex';
     if (enrHint) enrHint.textContent = '🔒 एनरोलमेंट नंबर केवल देखने के लिए है (View Only - बदलाव नहीं किया जा सकता)। नया आधार मिलने पर ऊपर आधार कार्ड विकल्प चुनें।';
     if (optRemark) optRemark.style.display = 'none';
+
+    if (dateCard) {
+      dateCard.style.display = 'block';
+      dateCard.innerHTML = `
+        <div class="ed-title">📝 नामांकन विवरण (Enrollment Details):</div>
+        <div class="ed-grid">
+          <div>स्लिप नंबर (14 अंक): <span>${escapeHtml(formatEidPretty(rec.enrollment))}</span></div>
+          <div>दर्ज समय (Sheet Time): <span>${escapeHtml(formattedEntryDate)}</span></div>
+          <div>स्थिति: <span style="color:var(--accent4)">🔒 View Only</span></div>
+        </div>`;
+    }
   } else {
     inpEnr.readOnly = false;
     inpEnr.classList.remove('readonly-input');
     if (enrBadge) enrBadge.style.display = 'none';
     if (enrHint) enrHint.textContent = '28 अंक दर्ज करें (उदा: 1234/56789/12345678)';
     if (optRemark) optRemark.style.display = '';
+    if (dateCard) dateCard.style.display = 'none';
   }
 
   ['input-aadhaar','input-enrollment','input-remark'].forEach(id => document.getElementById(id).style.display='none');

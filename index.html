@@ -122,8 +122,14 @@
         </select>
         <select id="filter-status" onchange="applyFilters()">
           <option value="" selected>सभी (एनरोलमेंट + खाली)</option>
-          <option value="empty">केवल खाली</option>
+          <option value="recent">✨ हाल ही में दर्ज (नवंबर 2026)</option>
           <option value="enrollment">केवल एनरोलमेंट</option>
+          <option value="empty">केवल खाली</option>
+          <option value="all">सभी स्थिति (कुल रिकॉर्ड)</option>
+        </select>
+        <select id="filter-sort" onchange="applyFilters()">
+          <option value="sno" selected>क्रम: क्र. अनुसार (1, 2, 3...)</option>
+          <option value="recent">क्रम: हाल ही में दर्ज (Newest First)</option>
         </select>
         <select id="filter-gender" onchange="applyFilters()">
           <option value="">सभी लिंग</option>
@@ -325,6 +331,7 @@
       <div id="input-enrollment" style="display:none">
         <div class="form-group">
           <label class="form-label">एनरोलमेंट नंबर <span class="required">*</span><span id="enrollment-view-badge" class="view-only-badge" style="display:none">🔒 केवल देखने के लिए (View Only)</span></label>
+          <div id="enrollment-date-card" class="enrollment-date-card" style="display:none"></div>
           <input type="tel" class="form-input" id="inp-enrollment" maxlength="28" placeholder="XXXX/XXXXX/XXXXXXXX" oninput="validateEnrollment()">
           <div class="form-hint" id="hint-enrollment">28 अंक दर्ज करें (उदा: 1234/56789/12345678)</div>
           <div class="char-count" id="cc-enrollment"><span class="char-no">0/28</span></div>
