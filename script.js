@@ -813,7 +813,6 @@ function applyFilters() {
   const village = document.getElementById('filter-village').value;
   const status = document.getElementById('filter-status').value;
   const gender = document.getElementById('filter-gender').value;
-  const sort = document.getElementById('filter-sort') ? document.getElementById('filter-sort').value : 'recent';
 
   filteredData = DATA.filter(r => {
     if(block && r.block !== block) return false;
@@ -890,8 +889,6 @@ function filterByEnrollment() {
   switchView('entry');
   const statusEl = document.getElementById('filter-status');
   if (statusEl) statusEl.value = 'enrollment';
-  const sortEl = document.getElementById('filter-sort');
-  if (sortEl) sortEl.value = 'recent';
   applyFilters();
 }
 
