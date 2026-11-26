@@ -768,7 +768,7 @@ function applyFilters() {
   const village = document.getElementById('filter-village').value;
   const status = document.getElementById('filter-status').value;
   const gender = document.getElementById('filter-gender').value;
-  const sort = document.getElementById('filter-sort') ? document.getElementById('filter-sort').value : 'sno';
+  const sort = document.getElementById('filter-sort') ? document.getElementById('filter-sort').value : 'recent';
 
   filteredData = DATA.filter(r => {
     if(block && r.block !== block) return false;
