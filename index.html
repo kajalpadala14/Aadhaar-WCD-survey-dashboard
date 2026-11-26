@@ -46,27 +46,8 @@
         <div class="stat-value" id="s-filled">0</div>
         <div class="stat-sub" id="s-filled-pct">0% पूर्ण</div>
       </div>
-      <div class="stat-card purple" id="card-enrollment" onclick="filterByEnrollment()" title="क्लिक करें: केवल एनरोलमेंट रिकॉर्ड देखें">
-        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>एनरोलमेंट प्रगति</span>
-          <span style="font-size:10px;background:rgba(188,140,255,0.2);color:#bc8cff;padding:2px 6px;border-radius:4px;font-weight:700;">ENROLLMENT</span>
-        </div>
-        <div style="display:flex;align-items:baseline;gap:8px;margin:6px 0 4px;">
-          <div class="stat-value" id="s-enrollment" style="font-size:34px;">0</div>
-          <div style="font-size:13px;color:var(--text2);font-weight:600;">/ <span id="s-enrollment-initial">0</span> कुल</div>
-          <div style="margin-left:auto;font-size:13px;font-weight:700;color:var(--accent3);" id="s-enrollment-pct">0% पूर्ण</div>
-        </div>
-        <div class="prog-track" style="height:6px;margin:8px 0;background:var(--surface2);border-radius:3px;overflow:hidden;">
-          <div id="s-enrollment-bar" class="prog-fill" style="width:0%;height:100%;background:#bc8cff;transition:width 0.3s ease;"></div>
-        </div>
-        <div class="stat-sub" id="s-enrollment-sub" style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;font-size:11px;color:var(--text2);flex-wrap:wrap;gap:4px;">
-          <span>पहले कुल: <strong id="s-enrollment-target" style="color:var(--text)">0</strong></span>
-          <span>पूर्ण: <strong id="s-enrollment-completed" style="color:#bc8cff">0</strong></span>
-          <span>बचा (पेंडिंग): <strong id="s-enrollment-pending" style="color:var(--accent)">0</strong></span>
-        </div>
-      </div>
-      <div class="stat-card orange" id="card-pending" onclick="filterByPending()" title="क्लिक करें: पेंडिंग (खाली) रिकॉर्ड देखें">
-        <div class="stat-label">शेष (पेंडिंग)</div>
+      <div class="stat-card orange">
+        <div class="stat-label">शेष</div>
         <div class="stat-value" id="s-pending">0</div>
         <div class="stat-sub" id="s-pending-pct">100% बाकी</div>
       </div>
@@ -159,12 +140,9 @@
     </div>
 
     <div class="table-wrap">
-      <div class="table-header" style="flex-wrap:wrap;gap:10px;">
+      <div class="table-header">
         <h3>सदस्य सूची</h3>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <div id="entry-kpi-summary" style="font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;color:var(--text2);"></div>
-          <div class="table-info" id="table-info"></div>
-        </div>
+        <div class="table-info" id="table-info"></div>
       </div>
       <div style="overflow-x:auto">
         <table class="records-table">
@@ -199,9 +177,8 @@
       <p>दंतेवाड़ा जिला, छत्तीसगढ़ | रिपोर्ट दिनांक: <span id="report-date"></span></p>
       <div class="report-meta">
         <div class="report-meta-item"><div class="rml">कुल सदस्य</div><div class="rmv" id="rm-total">0</div></div>
-        <div class="report-meta-item"><div class="rml">आधार भरे</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
-        <div class="report-meta-item"><div class="rml">एनरोलमेंट</div><div class="rmv" id="rm-enrollment" style="color:#bc8cff">0</div></div>
-        <div class="report-meta-item"><div class="rml">खाली / पेंडिंग</div><div class="rmv" id="rm-pending" style="color:var(--accent)">0</div></div>
+        <div class="report-meta-item"><div class="rml">भरे हुए</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
+        <div class="report-meta-item"><div class="rml">खाली</div><div class="rmv" id="rm-pending" style="color:var(--accent)">0</div></div>
         <div class="report-meta-item"><div class="rml">पूर्णता</div><div class="rmv" id="rm-pct" style="color:var(--accent2)">0%</div></div>
       </div>
     </div>

@@ -662,46 +662,11 @@ function updateNavProgress() {
 function renderDashboard() {
   const s = getStats();
   const pct = s.total > 0 ? (s.anyFilled / s.total * 100).toFixed(1) : '0.0';
-  const pendingPct = s.total > 0 ? ((s.pending / s.total) * 100).toFixed(1) : '0.0';
-
-  // Enrollment metrics (Target = currently enrolled + remaining pending)
-  const enrollDone = s.enrollmentFilled;
-  const enrollPending = s.pending;
-  const enrollTarget = enrollDone + enrollPending;
-  const enrollPct = enrollTarget > 0 ? ((enrollDone / enrollTarget) * 100).toFixed(1) : '0.0';
-
   document.getElementById('s-total').textContent = s.total.toLocaleString();
   document.getElementById('s-filled').textContent = s.anyFilled.toLocaleString();
   document.getElementById('s-filled-pct').textContent = pct + '% पूर्ण';
-
-  const elEnroll = document.getElementById('s-enrollment');
-  if (elEnroll) elEnroll.textContent = enrollDone.toLocaleString();
-
-  const elEnrollInitial = document.getElementById('s-enrollment-initial');
-  if (elEnrollInitial) elEnrollInitial.textContent = enrollTarget.toLocaleString();
-
-  const elEnrollPct = document.getElementById('s-enrollment-pct');
-  if (elEnrollPct) elEnrollPct.textContent = `${enrollPct}% पूर्ण`;
-
-  const elEnrollTarget = document.getElementById('s-enrollment-target');
-  if (elEnrollTarget) elEnrollTarget.textContent = enrollTarget.toLocaleString();
-
-  const elEnrollCompleted = document.getElementById('s-enrollment-completed');
-  if (elEnrollCompleted) elEnrollCompleted.textContent = enrollDone.toLocaleString();
-
-  const elEnrollPending = document.getElementById('s-enrollment-pending');
-  if (elEnrollPending) elEnrollPending.textContent = enrollPending.toLocaleString();
-
-  const elEnrollBar = document.getElementById('s-enrollment-bar');
-  if (elEnrollBar) elEnrollBar.style.width = `${Math.min(100, Math.max(0, parseFloat(enrollPct)))}%`;
-
-  const elEntryKpi = document.getElementById('entry-kpi-summary');
-  if (elEntryKpi) {
-    elEntryKpi.innerHTML = `एनरोलमेंट लक्ष्य: <strong>${enrollTarget.toLocaleString()}</strong> · पूर्ण: <strong style="color:var(--accent3)">${enrollDone.toLocaleString()}</strong> (${enrollPct}%) · पेंडिंग: <strong style="color:var(--accent)">${enrollPending.toLocaleString()}</strong>`;
-  }
-
   document.getElementById('s-pending').textContent = s.pending.toLocaleString();
-  document.getElementById('s-pending-pct').textContent = pendingPct + '% बाकी';
+  document.getElementById('s-pending-pct').textContent = (100 - Number(pct)).toFixed(1) + '% बाकी';
   document.getElementById('s-remark').textContent = s.remarkOnly.toLocaleString();
 
   // Block bars
@@ -1509,8 +1474,6 @@ function renderReport() {
   const pct = s.total > 0 ? (s.anyFilled/s.total*100).toFixed(1) : '0.0';
   document.getElementById('rm-total').textContent = s.total.toLocaleString();
   document.getElementById('rm-filled').textContent = s.anyFilled.toLocaleString();
-  const rmEnroll = document.getElementById('rm-enrollment');
-  if (rmEnroll) rmEnroll.textContent = s.enrollmentFilled.toLocaleString();
   document.getElementById('rm-pending').textContent = s.pending.toLocaleString();
   document.getElementById('rm-pct').textContent = pct + '%';
 
