@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aadhaar WCD survey</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261126-restore">
+<link rel="stylesheet" href="styles.css?v=20261126-v6">
 </head>
 <body class="light-mode">
 
@@ -55,6 +55,59 @@
         <div class="stat-label">केवल रिमार्क</div>
         <div class="stat-value" id="s-remark">0</div>
         <div class="stat-sub">आधार/एनरोलमेंट नहीं</div>
+      </div>
+    </div>
+
+    <!-- ENROLLMENT RE-ENTRY SPECIAL SECTION (AS IN IMAGE 1) -->
+    <div style="margin: 28px 0 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <h3 style="margin: 0; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px;">
+        <span>🎯</span> एनरोलमेंट सत्यापन एवं री-एंट्री प्रगति (2026)
+      </h3>
+      <span class="active-badge" style="background:rgba(86,211,100,0.15);color:var(--accent3);border:1px solid rgba(86,211,100,0.3);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;">🎯 विशेष अभियान: एनरोलमेंट री-एंट्री एवं सत्यापन</span>
+    </div>
+
+    <div class="stat-grid">
+      <!-- 1. कुल प्रारंभिक एनरोलमेंट -->
+      <div class="stat-card purple" id="card-dash-enrollment" onclick="filterByAllEnrollmentPool()" title="क्लिक करें: री-एंट्री लक्ष्य रिकॉर्ड्स देखें" style="cursor:pointer">
+        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>कुल प्रारंभिक एनरोलमेंट</span>
+          <span style="font-size:10px;background:rgba(188,140,255,0.2);color:#bc8cff;padding:2px 6px;border-radius:4px;font-weight:700;">INITIAL TARGET</span>
+        </div>
+        <div class="stat-value" id="dash-enrollment-total">0</div>
+        <div class="stat-sub" id="dash-enrollment-sub">री-एंट्री हेतु कुल चिन्हित रिकॉर्ड (Target Pool)</div>
+      </div>
+
+      <!-- 2. सत्यापित / पूर्ण री-एंट्री -->
+      <div class="stat-card green" id="card-dash-recent" onclick="filterByRecent()" title="क्लिक करें: पूर्ण री-एंट्री रिकॉर्ड्स देखें" style="cursor:pointer">
+        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>सत्यापित / पूर्ण री-एंट्री</span>
+          <span style="font-size:10px;background:rgba(86,211,100,0.2);color:var(--accent3);padding:2px 6px;border-radius:4px;font-weight:700;">COMPLETED</span>
+        </div>
+        <div class="stat-value" id="dash-reentry-week">0</div>
+        <div class="stat-sub" id="dash-reentry-sub">सत्यापित एवं अपडेटेड रिकॉर्ड (आधार / अन्य विवरण)</div>
+      </div>
+
+      <!-- 3. लंबित री-एंट्री (पेंडिंग) -->
+      <div class="stat-card orange" id="card-dash-pending" onclick="filterByPendingReentry()" title="क्लिक करें: लंबित री-एंट्री रिकॉर्ड्स देखें" style="cursor:pointer">
+        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>लंबित री-एंट्री (पेंडिंग)</span>
+          <span style="font-size:10px;background:rgba(247,129,102,0.2);color:var(--accent);padding:2px 6px;border-radius:4px;font-weight:700;">PENDING RE-ENTRY</span>
+        </div>
+        <div class="stat-value" id="dash-pending-count">0</div>
+        <div class="stat-sub" id="dash-pending-sub">1,495 में से 1,198 लंबित (पूर्णता: 19.9%)</div>
+      </div>
+
+      <!-- 4. री-एंट्री पूर्णता दर -->
+      <div class="stat-card blue">
+        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>री-एंट्री पूर्णता दर</span>
+          <span style="font-size:10px;background:rgba(121,192,255,0.2);color:var(--accent2);padding:2px 6px;border-radius:4px;font-weight:700;">PROGRESS RATE</span>
+        </div>
+        <div class="stat-value" id="dash-progress-pct">0%</div>
+        <div class="prog-track" style="height:6px;margin:8px 0;background:var(--surface2);border-radius:3px;overflow:hidden;">
+          <div id="dash-progress-bar" class="prog-fill" style="width:0%;height:100%;background:var(--accent2);transition:width 0.4s ease;"></div>
+        </div>
+        <div class="stat-sub" id="dash-progress-sub">0 / 0 कुल लक्ष्य के सापेक्ष पूर्ण</div>
       </div>
     </div>
 
@@ -121,11 +174,13 @@
           <option value="">सभी गाँव</option>
         </select>
         <select id="filter-status" onchange="applyFilters()">
-          <option value="recent" selected>✨ हाल ही में दर्ज (नवंबर 2026)</option>
           <option value="">सभी (एनरोलमेंट + खाली)</option>
-          <option value="enrollment">केवल एनरोलमेंट</option>
-          <option value="empty">केवल खाली</option>
-          <option value="all">सभी स्थिति (कुल रिकॉर्ड)</option>
+          <option value="recent">✨ सत्यापित / पूर्ण री-एंट्री (297)</option>
+          <option value="pending-reentry">⏳ लंबित री-एंट्री (1,198)</option>
+          <option value="enrollment-pool">🎯 कुल री-एंट्री लक्ष्य पूल (1,495)</option>
+          <option value="enrollment">केवल 28-अंक एनरोलमेंट</option>
+          <option value="empty">केवल खाली (Blank)</option>
+          <option value="all">सभी स्थिति (कुल 10,581)</option>
         </select>
         <select id="filter-sort" onchange="applyFilters()">
           <option value="recent" selected>क्रम: हाल ही में दर्ज (Newest First)</option>
@@ -491,6 +546,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js?v=20260817-live-server-api"></script>
-<script src="script.js?v=20261126-restore"></script>
+<script src="script.js?v=20261126-v6"></script>
 </body>
 </html>

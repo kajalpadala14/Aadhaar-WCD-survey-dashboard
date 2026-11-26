@@ -402,7 +402,7 @@ function loadLocalCache() {
     const saved = localStorage.getItem(LOCAL_CACHE_KEY);
     if (!saved) return false;
     const payload = JSON.parse(saved);
-    if (payload && payload.version === SYNC_VERSION && Array.isArray(payload.entries)) {
+    if (payload && payload.version === SYNC_VERSION && Array.isArray(payload.entries) && payload.entries.length > 0) {
       applySyncedEntries(payload.entries);
       return true;
     }
@@ -433,7 +433,7 @@ async function fetchFromSheet() {
     const data = await parseBackendResponse(res);
     if (data && data.ok && Array.isArray(data.entries)) {
       applySyncedEntries(data.entries);
-      clearLocalCache();
+      saveLocalCache();
       markDataViewsStale();
       renderDashboard();
       applyFilters();
@@ -451,7 +451,7 @@ async function fetchFromSheet() {
       const data = await discoverLocalProxy();
       if (data) {
         applySyncedEntries(data.entries);
-        clearLocalCache();
+        saveLocalCache();
         markDataViewsStale();
         renderDashboard();
         applyFilters();
@@ -527,15 +527,16 @@ async function initApp() {
   const progressEl = document.getElementById('nav-progress');
   if (progressEl) progressEl.textContent = 'लोड हो रहा है...';
 
-  clearLocalCache();
   await loadBackendConfig();
-  await wait(INITIAL_LOAD_DELAY_MS);
-
-  renderDashboard();
-  populateGPOptions();
-  populateVillageOptions();
-  populateReportFilterOptions();
-  applyFilters();
+  const hasCache = loadLocalCache();
+  if (hasCache) {
+    renderDashboard();
+    populateGPOptions();
+    populateVillageOptions();
+    populateReportFilterOptions();
+    applyFilters();
+    updateNavProgress();
+  }
   await fetchFromSheet(); // à¤«à¤¿à¤° backend à¤¸à¥‡ à¤¤à¤¾à¤œà¤¼à¤¾/à¤¸à¤¾à¤à¤¾ à¤¡à¥‡à¤Ÿà¤¾ à¤²à¤¾à¤à¤‚
   populateGPOptions();
   populateVillageOptions();
@@ -756,6 +757,50 @@ function renderDashboard() {
       <div class="bar-count">${s.remarkOnly}</div>
     </div>`;
 
+  // Enrollment Re-entry Metrics (Image 1)
+  let totalReentered = 0;
+  let totalPendingReentry = 0;
+
+  DATA.forEach(r => {
+    const k = getEntryKind(r);
+    const isNov = Boolean(r.entryTime && r.entryTime.includes('2026-11'));
+    if (isNov) {
+      totalReentered++;
+    } else if (k === 'enrollment') {
+      totalPendingReentry++;
+    }
+  });
+
+  const initialEnrollmentTarget = totalReentered + totalPendingReentry;
+  const reentryProgressPct = initialEnrollmentTarget > 0
+    ? ((totalReentered / initialEnrollmentTarget) * 100).toFixed(1)
+    : '0.0';
+
+  const elEnrollTotal = document.getElementById('dash-enrollment-total');
+  if (elEnrollTotal) elEnrollTotal.textContent = initialEnrollmentTarget.toLocaleString();
+
+  const elReentryWeek = document.getElementById('dash-reentry-week');
+  if (elReentryWeek) elReentryWeek.textContent = totalReentered.toLocaleString();
+
+  const elPendingCount = document.getElementById('dash-pending-count');
+  if (elPendingCount) elPendingCount.textContent = totalPendingReentry.toLocaleString();
+
+  const elPendingSub = document.getElementById('dash-pending-sub');
+  if (elPendingSub) {
+    elPendingSub.textContent = `${initialEnrollmentTarget.toLocaleString()} में से ${totalPendingReentry.toLocaleString()} लंबित (पूर्णता: ${reentryProgressPct}%)`;
+  }
+
+  const elProgressPct = document.getElementById('dash-progress-pct');
+  if (elProgressPct) elProgressPct.textContent = `${reentryProgressPct}%`;
+
+  const elProgressBar = document.getElementById('dash-progress-bar');
+  if (elProgressBar) elProgressBar.style.width = `${Math.min(100, Math.max(0, parseFloat(reentryProgressPct)))}%`;
+
+  const elProgressSub = document.getElementById('dash-progress-sub');
+  if (elProgressSub) {
+    elProgressSub.textContent = `${totalReentered.toLocaleString()} / ${initialEnrollmentTarget.toLocaleString()} कुल लक्ष्य के सापेक्ष पूर्ण`;
+  }
+
   updateNavProgress();
   viewRenderCache.dashboard = true;
 }
@@ -780,6 +825,10 @@ function applyFilters() {
 
     if (status === 'recent') {
       if (!isNov2026) return false;
+    } else if (status === 'pending-reentry') {
+      if (entryKind !== 'enrollment' || isNov2026) return false;
+    } else if (status === 'enrollment-pool') {
+      if (!isNov2026 && entryKind !== 'enrollment') return false;
     } else if (status === 'empty') {
       if (entryKind !== 'empty') return false;
     } else if (status === 'enrollment') {
@@ -814,8 +863,31 @@ function applyFilters() {
   viewRenderCache.entry = true;
 }
 
+window.showView = switchView;
+
+function filterByAllEnrollmentPool() {
+  switchView('entry');
+  const statusEl = document.getElementById('filter-status');
+  if (statusEl) statusEl.value = 'enrollment-pool';
+  applyFilters();
+}
+
+function filterByRecent() {
+  switchView('entry');
+  const statusEl = document.getElementById('filter-status');
+  if (statusEl) statusEl.value = 'recent';
+  applyFilters();
+}
+
+function filterByPendingReentry() {
+  switchView('entry');
+  const statusEl = document.getElementById('filter-status');
+  if (statusEl) statusEl.value = 'pending-reentry';
+  applyFilters();
+}
+
 function filterByEnrollment() {
-  showView('entry');
+  switchView('entry');
   const statusEl = document.getElementById('filter-status');
   if (statusEl) statusEl.value = 'enrollment';
   const sortEl = document.getElementById('filter-sort');
@@ -824,7 +896,7 @@ function filterByEnrollment() {
 }
 
 function filterByPending() {
-  showView('entry');
+  switchView('entry');
   const statusEl = document.getElementById('filter-status');
   if (statusEl) statusEl.value = 'empty';
   applyFilters();
