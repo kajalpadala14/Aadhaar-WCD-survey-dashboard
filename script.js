@@ -820,24 +820,12 @@ function applyFilters() {
     if(village && r.village !== village) return false;
     if(gender && r.gender !== gender) return false;
     const entryKind = getEntryKind(r);
-    const isNov2026 = Boolean(r.entryTime && r.entryTime.includes('2026-11'));
 
-    if (status === 'recent') {
-      if (!isNov2026) return false;
-    } else if (status === 'pending-reentry') {
-      if (entryKind !== 'enrollment' || isNov2026) return false;
-    } else if (status === 'enrollment-pool') {
-      if (!isNov2026 && entryKind !== 'enrollment') return false;
-    } else if (status === 'empty') {
-      if (entryKind !== 'empty') return false;
-    } else if (status === 'enrollment') {
-      if (entryKind !== 'enrollment') return false;
-    } else if (status === 'all') {
-      // allow all records
-    } else {
-      // Default: 'enrollment' और 'empty' (खाली) वाले रिकॉर्ड, साथ ही हाल ही में नवंबर 2026 में दर्ज सभी रिकॉर्ड्स दिखें
-      if (entryKind !== 'enrollment' && entryKind !== 'empty' && !isNov2026) return false;
-    }
+    // केवल 'enrollment' और 'empty' (खाली) वाले रिकॉर्ड ही डेटा एंट्री में दिखने चाहिए, बाकी (आधार, रिमार्क, आदि) नहीं
+    if(entryKind !== 'enrollment' && entryKind !== 'empty') return false;
+
+    if(status === 'empty' && entryKind !== 'empty') return false;
+    if(status === 'enrollment' && entryKind !== 'enrollment') return false;
 
     if(search) {
       const hay = `${r.member} ${r.fatherName} ${r.hof} ${r.village} ${r.mobile} ${r.enrollment || ''} ${r.aadhaar || ''} ${r.entryValue || ''}`.toLowerCase();
@@ -846,16 +834,7 @@ function applyFilters() {
     return true;
   });
 
-  if (sort === 'recent') {
-    filteredData.sort((a, b) => {
-      const timeA = a.entryTime ? new Date(a.entryTime).getTime() : 0;
-      const timeB = b.entryTime ? new Date(b.entryTime).getTime() : 0;
-      if (timeB !== timeA) return timeB - timeA;
-      return (Number(a.sno) || 0) - (Number(b.sno) || 0);
-    });
-  } else {
-    filteredData.sort((a, b) => (Number(a.sno) || 0) - (Number(b.sno) || 0));
-  }
+  filteredData.sort((a, b) => (Number(a.sno) || 0) - (Number(b.sno) || 0));
 
   currentPage = 1;
   renderTable();
@@ -867,21 +846,21 @@ window.showView = switchView;
 function filterByAllEnrollmentPool() {
   switchView('entry');
   const statusEl = document.getElementById('filter-status');
-  if (statusEl) statusEl.value = 'enrollment-pool';
+  if (statusEl) statusEl.value = '';
   applyFilters();
 }
 
 function filterByRecent() {
   switchView('entry');
   const statusEl = document.getElementById('filter-status');
-  if (statusEl) statusEl.value = 'recent';
+  if (statusEl) statusEl.value = '';
   applyFilters();
 }
 
 function filterByPendingReentry() {
   switchView('entry');
   const statusEl = document.getElementById('filter-status');
-  if (statusEl) statusEl.value = 'pending-reentry';
+  if (statusEl) statusEl.value = 'enrollment';
   applyFilters();
 }
 

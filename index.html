@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Aadhaar WCD survey</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261126-v7">
+<link rel="stylesheet" href="styles.css?v=20261126-v8">
 </head>
 <body class="light-mode">
 
@@ -174,13 +174,9 @@
           <option value="">सभी गाँव</option>
         </select>
         <select id="filter-status" onchange="applyFilters()">
-          <option value="">सभी (एनरोलमेंट + खाली)</option>
-          <option value="recent">✨ सत्यापित / पूर्ण री-एंट्री (297)</option>
-          <option value="pending-reentry">⏳ लंबित री-एंट्री (1,198)</option>
-          <option value="enrollment-pool">🎯 कुल री-एंट्री लक्ष्य पूल (1,495)</option>
-          <option value="enrollment">केवल 28-अंक एनरोलमेंट</option>
-          <option value="empty">केवल खाली (Blank)</option>
-          <option value="all">सभी स्थिति (कुल 10,581)</option>
+          <option value="" selected>सभी (एनरोलमेंट + खाली)</option>
+          <option value="empty">केवल खाली</option>
+          <option value="enrollment">केवल एनरोलमेंट</option>
         </select>
         <select id="filter-gender" onchange="applyFilters()">
           <option value="">सभी लिंग</option>
@@ -542,6 +538,6 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js?v=20260817-live-server-api"></script>
-<script src="script.js?v=20261126-v7"></script>
+<script src="script.js?v=20261126-v8"></script>
 </body>
 </html>
