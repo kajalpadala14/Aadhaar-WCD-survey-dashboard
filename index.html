@@ -243,6 +243,10 @@
         <select id="report-filter-reason" onchange="applyReportFilters()">
           <option value="">सभी Issue / Reason</option>
         </select>
+        <select id="report-filter-period" onchange="applyReportFilters()">
+          <option value="">सभी समय (All Time)</option>
+          <option value="recent">✨ केवल नए रिकॉर्ड (नवंबर 2026)</option>
+        </select>
       </div>
     </div>
 
@@ -271,7 +275,19 @@
     </div>
 
     <div class="report-section">
-      <h2>✅ भरे हुए रिकॉर्ड</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <h2>✅ भरे हुए रिकॉर्ड</h2>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <select id="report-filled-filter" onchange="renderReportFilledTable()" style="padding:6px 10px;border-radius:6px;background:var(--surface3);color:var(--text);border:1px solid var(--border);font-size:12px;font-weight:600;">
+            <option value="recent" selected>✨ केवल नए भरे हुए (नवंबर 2026)</option>
+            <option value="all">सभी भरे हुए रिकॉर्ड (कुल)</option>
+          </select>
+          <select id="report-filled-sort" onchange="renderReportFilledTable()" style="padding:6px 10px;border-radius:6px;background:var(--surface3);color:var(--text);border:1px solid var(--border);font-size:12px;font-weight:600;">
+            <option value="recent" selected>क्रम: नए रिकॉर्ड पहले (Newest First)</option>
+            <option value="sno">क्रम: क्र. अनुसार (1, 2, 3...)</option>
+          </select>
+        </div>
+      </div>
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>

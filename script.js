@@ -873,7 +873,8 @@ function getReportFilterElements() {
     block: document.getElementById('report-filter-block'),
     gp: document.getElementById('report-filter-gp'),
     village: document.getElementById('report-filter-village'),
-    reason: document.getElementById('report-filter-reason')
+    reason: document.getElementById('report-filter-reason'),
+    period: document.getElementById('report-filter-period')
   };
 }
 
@@ -922,12 +923,14 @@ function getReportFilteredData() {
   const gp = els.gp.value;
   const village = els.village.value;
   const reason = els.reason.value;
+  const period = els.period ? els.period.value : '';
 
   return DATA.filter(r => {
     if (block && r.block !== block) return false;
     if (gp && r.gp !== gp) return false;
     if (village && r.village !== village) return false;
     if (reason && String(r.remark || '').trim() !== reason) return false;
+    if (period === 'recent' && (!r.entryTime || !r.entryTime.includes('2026-11'))) return false;
     return true;
   });
 }
@@ -943,6 +946,7 @@ function updateReportFilterSummary() {
   if (els.gp && els.gp.value) parts.push(`GP: ${els.gp.value}`);
   if (els.village && els.village.value) parts.push(`Village: ${els.village.value}`);
   if (els.reason && els.reason.value) parts.push(`Issue: ${els.reason.value}`);
+  if (els.period && els.period.value === 'recent') parts.push('अवधि: नए (नवंबर 2026)');
   el.textContent = `${shown.toLocaleString()} / ${total.toLocaleString()} रिकॉर्ड` + (parts.length ? ` | ${parts.join(' | ')}` : ' | सभी रिकॉर्ड');
 }
 
@@ -1487,21 +1491,73 @@ function renderReport() {
   document.getElementById('rpt-reason').innerHTML = reasonHtml || '<tr><td colspan="4" style="text-align:center;color:var(--text3)">कोई कारण नहीं</td></tr>';
 
   // Filled records
-  const filled = reportFilteredData.filter(r => hasEntryDetail(r)||r.remark);
-  if(filled.length===0) {
-    document.getElementById('rpt-filled').innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>अभी कोई रिकॉर्ड भरा नहीं गया है।<br>डेटा एंट्री टैब पर जाएं और शुरू करें।</p></div></td></tr>';
-  } else {
-    let fHtml = '';
-    filled.forEach((r,i) => {
-      const kind = getEntryKind(r);
-      const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
-      const val = r.aadhaar || r.enrollment || r.entryValue || r.remark;
-      fHtml += `<tr><td>${i+1}</td><td style="font-size:12px">${r.block}</td><td style="font-size:12px">${r.village}</td><td><strong>${r.member}</strong><br><span style="font-size:11px;color:var(--text3)">${guardianDisplay(r)}</span></td><td>${type}</td><td style="font-family:monospace;font-size:13px;letter-spacing:1px">${val}</td><td class="time-cell">${escapeHtml(formatEntryTime(r.entryTime))}</td></tr>`;
-    });
-    fHtml += `<tr class="total-row"><td colspan="7"><strong>कुल भरे हुए रिकॉर्ड: ${filled.length.toLocaleString()}</strong></td></tr>`;
-    document.getElementById('rpt-filled').innerHTML = fHtml;
-  }
+  renderReportFilledTable();
   viewRenderCache.report = true;
+}
+
+function renderReportFilledTable() {
+  const tbody = document.getElementById('rpt-filled');
+  if (!tbody) return;
+
+  let filled = reportFilteredData.filter(r => hasEntryDetail(r) || r.remark);
+  const totalFilled = filled.length;
+
+  const filterEl = document.getElementById('report-filled-filter');
+  const filterVal = filterEl ? filterEl.value : 'recent';
+
+  if (filterVal === 'recent') {
+    filled = filled.filter(r => Boolean(r.entryTime && r.entryTime.includes('2026-11')));
+  }
+
+  const sortEl = document.getElementById('report-filled-sort');
+  const sortVal = sortEl ? sortEl.value : 'recent';
+
+  if (sortVal === 'recent') {
+    filled.sort((a, b) => {
+      const timeA = a.entryTime ? new Date(a.entryTime).getTime() : 0;
+      const timeB = b.entryTime ? new Date(b.entryTime).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (a.sno || 0) - (b.sno || 0);
+    });
+  } else {
+    filled.sort((a, b) => (a.sno || 0) - (b.sno || 0));
+  }
+
+  if (filled.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="es-icon">📭</div><p>${filterVal === 'recent' ? 'नवंबर 2026 में कोई नया भरा हुआ रिकॉर्ड नहीं मिला।' : 'अभी कोई रिकॉर्ड भरा नहीं गया है।'}</p></div></td></tr>`;
+    return;
+  }
+
+  let fHtml = '';
+  filled.forEach((r, i) => {
+    const kind = getEntryKind(r);
+    const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
+    const rawVal = r.enrollment || r.aadhaar || r.entryValue || r.remark || '';
+    const eidPretty = (kind === 'enrollment') ? formatEidPretty(rawVal) : '';
+    const valHtml = eidPretty
+      ? `<div><strong>${escapeHtml(eidPretty)}</strong></div><div class="eid-sub">${escapeHtml(rawVal)}</div>`
+      : escapeHtml(rawVal);
+
+    const isNov2026 = Boolean(r.entryTime && r.entryTime.includes('2026-11'));
+    const formattedTime = formatEntryTime(r.entryTime);
+    const timeHtml = isNov2026
+      ? `<span class="time-recent-badge">नवंबर 2026</span><br><span class="time-text">${escapeHtml(formattedTime)}</span>`
+      : `<span class="time-text">${escapeHtml(formattedTime)}</span>`;
+
+    fHtml += `<tr>
+      <td>${i + 1}</td>
+      <td style="font-size:12px">${escapeHtml(r.block)}</td>
+      <td style="font-size:12px">${escapeHtml(r.village)}</td>
+      <td><strong>${escapeHtml(r.member)}</strong><br><span style="font-size:11px;color:var(--text3)">${guardianDisplay(r)}</span></td>
+      <td><span class="badge ${kind === 'enrollment' ? 'badge-enrollment' : ''}">${type}</span></td>
+      <td style="font-family:monospace;font-size:13px;letter-spacing:1px">${valHtml}</td>
+      <td class="time-cell">${timeHtml}</td>
+    </tr>`;
+  });
+
+  const filterLabel = filterVal === 'recent' ? '✨ केवल नए (नवंबर 2026)' : 'सभी';
+  fHtml += `<tr class="total-row"><td colspan="7"><strong>प्रदर्शित रिकॉर्ड: ${filled.length.toLocaleString()} (${filterLabel} | कुल भरे हुए: ${totalFilled.toLocaleString()})</strong></td></tr>`;
+  tbody.innerHTML = fHtml;
 }
 
 // EXPORT
@@ -1571,7 +1627,20 @@ function getReportSectionData(section) {
   }
 
   if (section === 'filled') {
-    const filled = source.filter(r => hasEntryDetail(r) || r.remark);
+    let filled = source.filter(r => hasEntryDetail(r) || r.remark);
+    const filterEl = document.getElementById('report-filled-filter');
+    if (filterEl && filterEl.value === 'recent') {
+      filled = filled.filter(r => Boolean(r.entryTime && r.entryTime.includes('2026-11')));
+    }
+    const sortEl = document.getElementById('report-filled-sort');
+    if (!sortEl || sortEl.value === 'recent') {
+      filled.sort((a, b) => {
+        const timeA = a.entryTime ? new Date(a.entryTime).getTime() : 0;
+        const timeB = b.entryTime ? new Date(b.entryTime).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
+        return (a.sno || 0) - (b.sno || 0);
+      });
+    }
     const rows = filled.map((r, i) => {
       const kind = getEntryKind(r);
       const type = kind === 'aadhaar' ? 'आधार' : kind === 'enrollment' ? 'एनरोलमेंट' : kind === 'detail' ? 'अन्य' : 'रिमार्क';
