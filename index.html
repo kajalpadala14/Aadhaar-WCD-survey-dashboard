@@ -46,8 +46,23 @@
         <div class="stat-value" id="s-filled">0</div>
         <div class="stat-sub" id="s-filled-pct">0% पूर्ण</div>
       </div>
-      <div class="stat-card orange">
-        <div class="stat-label">शेष</div>
+      <div class="stat-card purple" id="card-enrollment" onclick="filterByEnrollment()" title="क्लिक करें: केवल एनरोलमेंट रिकॉर्ड देखें">
+        <div class="stat-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>एनरोलमेंट स्थिति</span>
+          <span style="font-size:10px;background:rgba(188,140,255,0.2);color:#bc8cff;padding:2px 6px;border-radius:4px;font-weight:700;">ENROLLMENT</span>
+        </div>
+        <div class="stat-value" id="s-enrollment">0</div>
+        <div class="stat-sub" id="s-enrollment-sub">
+          <span>पेंडिंग: <strong id="s-enrollment-pending">0</strong></span>
+          <span style="margin: 0 4px">·</span>
+          <span>बचा हुआ: <strong id="s-enrollment-remaining">0%</strong></span>
+        </div>
+        <div class="prog-track" style="height:4px;margin-top:8px;background:var(--surface2);border-radius:2px;overflow:hidden;">
+          <div id="s-enrollment-bar" class="prog-fill" style="width:0%;height:100%;background:#bc8cff;transition:width 0.3s ease;"></div>
+        </div>
+      </div>
+      <div class="stat-card orange" id="card-pending" onclick="filterByPending()" title="क्लिक करें: पेंडिंग (खाली) रिकॉर्ड देखें">
+        <div class="stat-label">शेष (पेंडिंग)</div>
         <div class="stat-value" id="s-pending">0</div>
         <div class="stat-sub" id="s-pending-pct">100% बाकी</div>
       </div>
@@ -186,8 +201,9 @@
       <p>दंतेवाड़ा जिला, छत्तीसगढ़ | रिपोर्ट दिनांक: <span id="report-date"></span></p>
       <div class="report-meta">
         <div class="report-meta-item"><div class="rml">कुल सदस्य</div><div class="rmv" id="rm-total">0</div></div>
-        <div class="report-meta-item"><div class="rml">भरे हुए</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
-        <div class="report-meta-item"><div class="rml">खाली</div><div class="rmv" id="rm-pending" style="color:var(--accent)">0</div></div>
+        <div class="report-meta-item"><div class="rml">आधार भरे</div><div class="rmv" id="rm-filled" style="color:var(--accent3)">0</div></div>
+        <div class="report-meta-item"><div class="rml">एनरोलमेंट</div><div class="rmv" id="rm-enrollment" style="color:#bc8cff">0</div></div>
+        <div class="report-meta-item"><div class="rml">खाली / पेंडिंग</div><div class="rmv" id="rm-pending" style="color:var(--accent)">0</div></div>
         <div class="report-meta-item"><div class="rml">पूर्णता</div><div class="rmv" id="rm-pct" style="color:var(--accent2)">0%</div></div>
       </div>
     </div>

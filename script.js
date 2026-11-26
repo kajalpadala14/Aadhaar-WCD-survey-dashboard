@@ -662,11 +662,27 @@ function updateNavProgress() {
 function renderDashboard() {
   const s = getStats();
   const pct = s.total > 0 ? (s.anyFilled / s.total * 100).toFixed(1) : '0.0';
+  const pendingPct = s.total > 0 ? ((s.pending / s.total) * 100).toFixed(1) : '0.0';
+  const enrollmentPct = s.total > 0 ? ((s.enrollmentFilled / s.total) * 100).toFixed(1) : '0.0';
+
   document.getElementById('s-total').textContent = s.total.toLocaleString();
   document.getElementById('s-filled').textContent = s.anyFilled.toLocaleString();
   document.getElementById('s-filled-pct').textContent = pct + '% पूर्ण';
+
+  const elEnroll = document.getElementById('s-enrollment');
+  if (elEnroll) elEnroll.textContent = s.enrollmentFilled.toLocaleString();
+
+  const elEnrollPending = document.getElementById('s-enrollment-pending');
+  if (elEnrollPending) elEnrollPending.textContent = s.pending.toLocaleString();
+
+  const elEnrollRem = document.getElementById('s-enrollment-remaining');
+  if (elEnrollRem) elEnrollRem.textContent = `${pendingPct}% बाकी`;
+
+  const elEnrollBar = document.getElementById('s-enrollment-bar');
+  if (elEnrollBar) elEnrollBar.style.width = `${Math.min(100, Math.max(0, enrollmentPct))}%`;
+
   document.getElementById('s-pending').textContent = s.pending.toLocaleString();
-  document.getElementById('s-pending-pct').textContent = (100 - Number(pct)).toFixed(1) + '% बाकी';
+  document.getElementById('s-pending-pct').textContent = pendingPct + '% बाकी';
   document.getElementById('s-remark').textContent = s.remarkOnly.toLocaleString();
 
   // Block bars
@@ -812,6 +828,22 @@ function applyFilters() {
   currentPage = 1;
   renderTable();
   viewRenderCache.entry = true;
+}
+
+function filterByEnrollment() {
+  showView('entry');
+  const statusEl = document.getElementById('filter-status');
+  if (statusEl) statusEl.value = 'enrollment';
+  const sortEl = document.getElementById('filter-sort');
+  if (sortEl) sortEl.value = 'recent';
+  applyFilters();
+}
+
+function filterByPending() {
+  showView('entry');
+  const statusEl = document.getElementById('filter-status');
+  if (statusEl) statusEl.value = 'empty';
+  applyFilters();
 }
 
 // à¤¬à¥à¤²à¥‰à¤• à¤«à¤¼à¤¿à¤²à¥à¤Ÿà¤° à¤¬à¤¦à¤²à¤¨à¥‡ à¤ªà¤° à¤—à¥à¤°à¤¾à¤® à¤ªà¤‚à¤šà¤¾à¤¯à¤¤ à¤µ à¤—à¤¾à¤à¤µ à¤•à¥‡ à¤¡à¥à¤°à¥‰à¤ªà¤¡à¤¾à¤‰à¤¨ à¤•à¥‹ à¤«à¤¿à¤° à¤¸à¥‡ à¤­à¤°à¥‡à¤‚
@@ -1456,6 +1488,8 @@ function renderReport() {
   const pct = s.total > 0 ? (s.anyFilled/s.total*100).toFixed(1) : '0.0';
   document.getElementById('rm-total').textContent = s.total.toLocaleString();
   document.getElementById('rm-filled').textContent = s.anyFilled.toLocaleString();
+  const rmEnroll = document.getElementById('rm-enrollment');
+  if (rmEnroll) rmEnroll.textContent = s.enrollmentFilled.toLocaleString();
   document.getElementById('rm-pending').textContent = s.pending.toLocaleString();
   document.getElementById('rm-pct').textContent = pct + '%';
 
