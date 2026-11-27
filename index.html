@@ -357,12 +357,12 @@
           <div class="radio-opt" id="opt-aadhaar" onclick="selectType('aadhaar')">
             <div class="radio-icon">🪪</div>
             <div class="radio-title">आधार कार्ड</div>
-            <div class="radio-sub">12 अंक</div>
+            <div class="radio-sub">12 अंक (अनिवार्य)</div>
           </div>
           <div class="radio-opt" id="opt-enrollment" onclick="selectType('enrollment')">
             <div class="radio-icon">📝</div>
             <div class="radio-title">एनरोलमेंट नंबर</div>
-            <div class="radio-sub">28 अंक</div>
+            <div class="radio-sub">28 अंक (View Only)</div>
           </div>
           <div class="radio-opt" id="opt-remark" onclick="selectType('remark')">
             <div class="radio-icon">💬</div>
@@ -375,20 +375,37 @@
 
       <div id="input-aadhaar" style="display:none">
         <div class="form-group">
-          <label class="form-label">आधार कार्ड नंबर <span class="required">*</span></label>
-          <input type="tel" class="form-input" id="inp-aadhaar" maxlength="12" placeholder="00000000XXXX" oninput="validateAadhaar()">
+          <label class="form-label">आधार कार्ड नंबर <span class="required">* (अनिवार्य)</span></label>
+          <div class="aadhaar-input-wrapper" id="aadhaar-wrapper">
+            <div class="aadhaar-prefix-box" title="शुरू के 8 अंक स्वतः 00000000 रहेंगे">
+              <span class="prefix-zeros">0000 0000</span>
+              <span class="prefix-tag">🔒 शुरू के 8 अंक</span>
+            </div>
+            <div class="aadhaar-last4-wrap">
+              <input type="tel" class="form-input aadhaar-last4-input" id="inp-aadhaar-last4" maxlength="4" placeholder="अंतिम 4 अंक दर्ज करें" autocomplete="off" inputmode="numeric" pattern="[0-9]*" oninput="onAadhaarLast4Input()">
+            </div>
+          </div>
+          <input type="hidden" id="inp-aadhaar" value="00000000">
           <div class="form-hint">केवल 12 अंक (शुरू के 8 अंक 00000000, अंतिम 4 अंक दर्ज करें)</div>
-          <div class="char-count" id="cc-aadhaar"><span class="char-no">8/12</span></div>
+          <div class="char-count" id="cc-aadhaar"><span class="char-err">8/12 - अंतिम 4 अंक दर्ज करना अनिवार्य है</span></div>
         </div>
       </div>
 
       <div id="input-enrollment" style="display:none">
         <div class="form-group">
-          <label class="form-label">एनरोलमेंट नंबर <span class="required">*</span><span id="enrollment-view-badge" class="view-only-badge" style="display:none">🔒 केवल देखने के लिए (View Only)</span></label>
+          <label class="form-label">एनरोलमेंट नंबर <span id="enrollment-view-badge" class="view-only-badge" style="display:none">🔒 केवल देखने के लिए (View Only)</span></label>
           <div id="enrollment-date-card" class="enrollment-date-card" style="display:none"></div>
-          <input type="tel" class="form-input" id="inp-enrollment" maxlength="28" placeholder="XXXX/XXXXX/XXXXXXXX" oninput="validateEnrollment()">
-          <div class="form-hint" id="hint-enrollment">28 अंक दर्ज करें (उदा: 1234/56789/12345678)</div>
-          <div class="char-count" id="cc-enrollment"><span class="char-no">0/28</span></div>
+          <input type="tel" class="form-input readonly-input" id="inp-enrollment" maxlength="28" placeholder="XXXX/XXXXX/XXXXXXXX" readonly oninput="validateEnrollment()">
+          <div class="form-hint" id="hint-enrollment">🔒 एनरोलमेंट नंबर केवल देखने के लिए है (View Only - बदलाव नहीं किया जा सकता)।</div>
+          <div class="char-count" id="cc-enrollment"><span class="char-ok">✓ 28/28 (View Only)</span></div>
+
+          <div class="enrollment-next-step-box">
+            <div class="ens-title">👉 अगला कदम: आधार विवरण दर्ज करें</div>
+            <div class="ens-desc">नामांकन विवरण केवल देखने के लिए है। फॉर्म सबमिट करने के लिए आधार कार्ड के अंतिम 4 अंक दर्ज करना अनिवार्य है।</div>
+            <button type="button" class="btn-goto-aadhaar" onclick="selectType('aadhaar')">
+              🪪 आधार कार्ड नंबर (अंतिम 4 अंक) दर्ज करें ➔
+            </button>
+          </div>
         </div>
       </div>
 

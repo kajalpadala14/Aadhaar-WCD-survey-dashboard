@@ -1168,7 +1168,11 @@ function openModal(rowKey) {
 
   // Pre-fill
   const existingAadhaar = rec.aadhaar || (!hasEnrollment && (digitsOnly(rec.entryValue).length === 4 || digitsOnly(rec.entryValue).length === 12) ? rec.entryValue : '');
-  document.getElementById('inp-aadhaar').value = existingAadhaar ? formatAadhaar(existingAadhaar) : '00000000';
+  const existingLast4 = existingAadhaar ? digitsOnly(existingAadhaar).slice(-4) : '';
+  const inpAadhaar = document.getElementById('inp-aadhaar');
+  const inpLast4 = document.getElementById('inp-aadhaar-last4');
+  if (inpAadhaar) inpAadhaar.value = existingLast4 ? ('00000000' + existingLast4) : '00000000';
+  if (inpLast4) inpLast4.value = existingLast4;
 
   const inpEnr = document.getElementById('inp-enrollment');
   const enrBadge = document.getElementById('enrollment-view-badge');
@@ -1211,9 +1215,10 @@ function openModal(rowKey) {
     document.getElementById(id).className = 'radio-opt';
   });
 
-  if (rec.aadhaar || existingAadhaar) selectType('aadhaar');
-  else if (hasEnrollment) selectType('enrollment');
+  if (hasEnrollment) selectType('enrollment');
+  else if (rec.aadhaar || existingAadhaar) selectType('aadhaar');
   else if (rec.remark) selectType('remark');
+  else selectType('aadhaar');
 
   document.getElementById('btn-save').disabled = !selectedType;
   document.getElementById('modal').style.display = 'flex';
@@ -1300,20 +1305,59 @@ function selectType(type) {
     document.getElementById('opt-'+t).className = 'radio-opt' + (t===type ? ` selected-${t}` : '');
     document.getElementById('input-'+t).style.display = t===type ? 'block' : 'none';
   });
-  document.getElementById('btn-save').disabled = false;
+  document.getElementById('btn-save').disabled = true;
   if(type==='aadhaar') {
     const inp = document.getElementById('inp-aadhaar');
-    if (!inp.value || inp.value.length < 8) {
+    const inpLast4 = document.getElementById('inp-aadhaar-last4');
+    if (inpLast4) {
+      const cleanLast4 = digitsOnly(inpLast4.value).slice(-4);
+      inpLast4.value = cleanLast4;
+      if (inp) inp.value = '00000000' + cleanLast4;
+      setTimeout(() => inpLast4.focus(), 50);
+    } else if (inp && (!inp.value || inp.value.length < 8)) {
       inp.value = '00000000';
     }
     validateAadhaar();
   }
   if(type==='enrollment') validateEnrollment();
+  if(type==='remark') {
+    const remarkVal = document.getElementById('inp-remark').value.trim();
+    document.getElementById('btn-save').disabled = remarkVal.length === 0;
+  }
+}
+
+function onAadhaarLast4Input() {
+  const inpLast4 = document.getElementById('inp-aadhaar-last4');
+  const inp = document.getElementById('inp-aadhaar');
+  if (!inpLast4) return;
+  const clean = inpLast4.value.replace(/\D/g, '').slice(0, 4);
+  if (inpLast4.value !== clean) inpLast4.value = clean;
+  if (inp) inp.value = '00000000' + clean;
+  validateAadhaar();
 }
 
 function validateAadhaar() {
+  const inpLast4 = document.getElementById('inp-aadhaar-last4');
   const inp = document.getElementById('inp-aadhaar');
+  const wrapper = document.getElementById('aadhaar-wrapper');
   const el = document.getElementById('cc-aadhaar');
+
+  if (inpLast4) {
+    const last4 = inpLast4.value.replace(/\D/g, '').slice(0, 4);
+    if (inp) inp.value = '00000000' + last4;
+    if (last4.length === 4) {
+      if (el) el.innerHTML = `<span class="char-ok">✓ 12/12 - सही (आधार नंबर: 00000000${last4})</span>`;
+      if (wrapper) wrapper.className = 'aadhaar-input-wrapper valid';
+      document.getElementById('btn-save').disabled = false;
+    } else {
+      const remaining = 4 - last4.length;
+      if (el) el.innerHTML = `<span class="char-err">${8 + last4.length}/12 - अंतिम ${remaining} अंक दर्ज करें</span>`;
+      if (wrapper) wrapper.className = 'aadhaar-input-wrapper invalid';
+      document.getElementById('btn-save').disabled = true;
+    }
+    return;
+  }
+
   const formatted = formatAadhaarInputValue(inp.value);
   if (inp.value !== formatted) {
     inp.value = formatted;
@@ -1360,12 +1404,28 @@ async function saveEntry() {
   const previous = { ...rec };
 
   if(selectedType==='aadhaar') {
-    const v = document.getElementById('inp-aadhaar').value.replace(/\D/g,'');
-    if(v.length < 12) return;
-    const finalAadhaar = '00000000' + v.slice(-4);
-    rec.aadhaar = finalAadhaar; rec.enrollment = ''; rec.remark = '';
+    const inpLast4 = document.getElementById('inp-aadhaar-last4');
+    if (inpLast4) {
+      const last4 = inpLast4.value.replace(/\D/g, '');
+      if (last4.length !== 4) {
+        showToast('कृपया आधार के अंतिम 4 अंक दर्ज करें!');
+        inpLast4.focus();
+        return;
+      }
+      rec.aadhaar = '00000000' + last4;
+    } else {
+      const v = document.getElementById('inp-aadhaar').value.replace(/\D/g,'');
+      if(v.length < 12) return;
+      rec.aadhaar = '00000000' + v.slice(-4);
+    }
+    rec.enrollment = ''; rec.remark = '';
   } else if(selectedType==='enrollment') {
-    const v = document.getElementById('inp-enrollment').value.replace(/\D/g,'');
+    const inpEnr = document.getElementById('inp-enrollment');
+    if (inpEnr.readOnly) {
+      showToast('एनरोलमेंट केवल देखने के लिए है — कृपया आधार कार्ड के अंतिम 4 अंक दर्ज करें!');
+      return;
+    }
+    const v = inpEnr.value.replace(/\D/g,'');
     if(v.length!==28) return;
     rec.enrollment = v; rec.aadhaar = '';
     rec.remark = '';
@@ -1956,11 +2016,25 @@ function downloadSectionPDF(section) {
 }
 
 function initAadhaarInputControls() {
-  ['inp-aadhaar', 'add-aadhaar'].forEach(id => {
-    const inp = document.getElementById(id);
-    if (!inp) return;
+  const inpLast4 = document.getElementById('inp-aadhaar-last4');
+  if (inpLast4) {
+    inpLast4.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const v = this.value.replace(/\D/g, '');
+        if (v.length === 4) {
+          saveEntry();
+        }
+      }
+    });
+    inpLast4.addEventListener('paste', function(e) {
+      setTimeout(() => onAadhaarLast4Input(), 10);
+    });
+  }
 
-    inp.addEventListener('keydown', function(e) {
+  const addAadhaar = document.getElementById('add-aadhaar');
+  if (addAadhaar) {
+    addAadhaar.addEventListener('keydown', function(e) {
       if (e.key === 'Backspace' && this.selectionStart <= 8 && this.selectionEnd <= 8) {
         e.preventDefault();
       }
@@ -1973,9 +2047,9 @@ function initAadhaarInputControls() {
       }
     };
 
-    inp.addEventListener('focus', placeCursor);
-    inp.addEventListener('click', placeCursor);
-  });
+    addAadhaar.addEventListener('focus', placeCursor);
+    addAadhaar.addEventListener('click', placeCursor);
+  }
 }
 
 // INIT
